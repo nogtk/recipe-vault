@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { extractHtmlText, extractRecipeCandidate, extractRecipeJson, parseYouTubeVideoId, transcriptXmlToText } from "../src/lib/recipe-extraction";
+import { extractHtmlText, extractRecipeCandidate, extractRecipeFromAiResponse, extractRecipeJson, parseYouTubeVideoId, transcriptXmlToText } from "../src/lib/recipe-extraction";
 
 describe("extractHtmlText", () => {
   it("HTMLから本文らしいテキストを取り出す", () => {
@@ -45,6 +45,26 @@ describe("extractRecipeJson", () => {
   });
 });
 
+describe("extractRecipeFromAiResponse", () => {
+  it("Workers AI JSON Modeのオブジェクト応答を読み取る", () => {
+    expect(
+      extractRecipeFromAiResponse({
+        response: {
+          title: "唐揚げ",
+          ingredients: "鶏モモ肉",
+          steps: "揚げる",
+          notes: "説明欄から抽出",
+        },
+      }),
+    ).toEqual({
+      title: "唐揚げ",
+      ingredients: "鶏モモ肉",
+      steps: "揚げる",
+      notes: "説明欄から抽出",
+    });
+  });
+});
+
 describe("extractRecipeCandidate", () => {
   it("YouTube情報がHTMLの後方にあっても説明欄を使って候補を作る", async () => {
     const longPadding = "x".repeat(30_000);
@@ -52,12 +72,12 @@ describe("extractRecipeCandidate", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(youtubeHtml)));
     const ai = {
       run: vi.fn(async () => ({
-        response: JSON.stringify({
+        response: {
           title: "至高の唐揚げ",
           ingredients: "鶏モモ肉\n醤油\nみりん\n酒",
           steps: "下味をつけて揚げる",
           notes: "YouTube説明欄から抽出",
-        }),
+        },
       })),
     };
 

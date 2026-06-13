@@ -9,7 +9,7 @@
     "head_sampling_rate": 1
   },
   "vars": {
-    "AI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
+    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast"
   },
   "ai": {
     "binding": "AI"

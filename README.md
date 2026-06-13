@@ -63,10 +63,10 @@ npm run deploy
 Workers AIモデルは `wrangler.jsonc` の `AI_MODEL` で変えられます。初期値は次です。
 
 ```text
-@cf/qwen/qwen3-30b-a3b-fp8
+@cf/meta/llama-3.1-8b-instruct-fast
 ```
 
-さらに安さを優先する場合は、次のような軽量モデルに差し替えて試せます。
+JSON形式の安定性を優先するため、初期値はWorkers AIのJSON Modeに対応したモデルにしています。さらに安さを優先する場合は、次のような軽量モデルに差し替えて試せますが、JSONとして返らない場合があります。
 
 ```text
 @cf/ibm-granite/granite-4.0-h-micro

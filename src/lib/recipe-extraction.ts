@@ -1,7 +1,7 @@
 import { extractTitleFromHtml, titleFromUrlFallback } from "./url-title";
 import type { Env, RecipeInput } from "../types";
 
-const defaultAiModel = "@cf/qwen/qwen3-30b-a3b-fp8";
+const defaultAiModel = "@cf/meta/llama-3.1-8b-instruct-fast";
 const maxSourceChars = 24_000;
 const maxYouTubeHtmlChars = 1_200_000;
 
@@ -173,6 +173,57 @@ export function extractRecipeJson(text: string): Pick<RecipeCandidate, "title" |
   };
 }
 
+function normalizeRecipeObject(value: unknown): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = value as Partial<RecipeCandidate>;
+
+  return {
+    title: String(parsed.title ?? "").trim(),
+    ingredients: String(parsed.ingredients ?? "").trim(),
+    steps: String(parsed.steps ?? "").trim(),
+    notes: String(parsed.notes ?? "").trim(),
+  };
+}
+
+export function extractRecipeFromAiResponse(response: unknown): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> {
+  if (typeof response === "string") return extractRecipeJson(response);
+  if (!response || typeof response !== "object") throw new Error("AIの応答からJSONを読み取れませんでした。");
+
+  const result = response as {
+    response?: unknown;
+    result?: unknown;
+    choices?: Array<{ message?: { content?: unknown } }>;
+  };
+  const candidates = [
+    result.response,
+    result.result,
+    result.choices?.[0]?.message?.content,
+    response,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") return extractRecipeJson(candidate);
+    const recipe = normalizeRecipeObject(candidate);
+    if (recipe) return recipe;
+  }
+
+  throw new Error("AIの応答からJSONを読み取れませんでした。");
+}
+
+const recipeResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      ingredients: { type: "string" },
+      steps: { type: "string" },
+      notes: { type: "string" },
+    },
+    required: ["title", "ingredients", "steps", "notes"],
+  },
+};
+
 function buildPrompt(source: SourceText): string {
   return `次のテキストからレシピを抽出してください。本文にない材料、分量、手順は推測で補わないでください。
 JSONだけを返してください。形式は {"title":"","ingredients":"","steps":"","notes":""} です。
@@ -194,9 +245,9 @@ export async function extractRecipeCandidate(env: Env, url: string): Promise<Rec
       { role: "system", content: "あなたはレシピ本文を、保存用の日本語レシピ下書きに整えるアシスタントです。" },
       { role: "user", content: buildPrompt(source) },
     ],
+    response_format: recipeResponseFormat,
   });
-  const text = typeof response === "string" ? response : String((response as { response?: string }).response ?? "");
-  const recipe = extractRecipeJson(text);
+  const recipe = extractRecipeFromAiResponse(response);
 
   return {
     url,
