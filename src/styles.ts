@@ -5,20 +5,21 @@ export const styles = `
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(231, 117, 91, 0.10), transparent 34rem),
-    linear-gradient(145deg, #fbfaf7 0%, #f1f4ef 48%, #f8f4ee 100%);
+    radial-gradient(circle at top left, rgba(94, 142, 105, 0.18), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(181, 205, 164, 0.20), transparent 30rem),
+    linear-gradient(145deg, #fbfaf6 0%, #eef5ed 48%, #f7f2ea 100%);
   color: #222621;
-  --surface: rgba(255, 255, 255, 0.86);
+  --surface: rgba(255, 255, 255, 0.88);
   --surface-strong: #ffffff;
   --ink: #222621;
-  --muted: #697168;
-  --line: rgba(63, 83, 70, 0.16);
-  --line-strong: rgba(63, 83, 70, 0.26);
-  --primary: #315f4d;
-  --primary-dark: #244938;
-  --primary-soft: #e7f0e8;
-  --accent: #d86f57;
-  --accent-soft: #fff0ea;
+  --muted: #657466;
+  --line: rgba(58, 91, 64, 0.17);
+  --line-strong: rgba(58, 91, 64, 0.28);
+  --primary: #2f6b4f;
+  --primary-dark: #214b37;
+  --primary-soft: #e3f0e3;
+  --accent: #5e8e69;
+  --accent-soft: #edf7ed;
   --shadow: 0 18px 48px rgba(37, 47, 39, 0.10);
   --shadow-soft: 0 8px 22px rgba(37, 47, 39, 0.07);
 }
@@ -31,13 +32,13 @@ body::before {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(49, 95, 77, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(49, 95, 77, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(47, 107, 79, 0.038) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47, 107, 79, 0.032) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 70%);
 }
 a { color: var(--primary-dark); text-decoration-thickness: 1px; text-underline-offset: 3px; }
-a:hover { color: var(--accent); }
+a:hover { color: var(--primary); }
 
 .shell {
   width: min(1120px, calc(100% - 32px));
@@ -59,7 +60,7 @@ a:hover { color: var(--accent); }
   letter-spacing: 0;
 }
 .eyebrow {
-  color: var(--accent);
+  color: var(--primary);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -90,7 +91,7 @@ a:hover { color: var(--accent); }
   background: var(--primary-dark);
   color: #fff;
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(36, 73, 56, 0.18);
+  box-shadow: 0 12px 28px rgba(33, 75, 55, 0.18);
 }
 .button.secondary {
   background: rgba(255, 255, 255, 0.74);
@@ -151,9 +152,9 @@ input, select, textarea {
     background-color 0.16s ease;
 }
 input:focus, select:focus, textarea:focus {
-  border-color: rgba(49, 95, 77, 0.62);
+  border-color: rgba(47, 107, 79, 0.62);
   background: #fff;
-  box-shadow: 0 0 0 4px rgba(49, 95, 77, 0.12);
+  box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.12);
 }
 textarea {
   min-height: 132px;
@@ -173,7 +174,7 @@ textarea {
     transform 0.16s ease;
 }
 .recipe-card:hover {
-  border-color: rgba(49, 95, 77, 0.28);
+  border-color: rgba(47, 107, 79, 0.30);
   box-shadow: var(--shadow);
   transform: translateY(-1px);
 }
@@ -196,7 +197,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 4px 9px;
-  background: #fafcf9;
+  background: #f6fbf5;
 }
 .recipe-snippet {
   display: grid;
@@ -226,7 +227,7 @@ textarea {
 .tag {
   background: var(--primary-soft);
   color: var(--primary-dark);
-  border: 1px solid rgba(49, 95, 77, 0.12);
+  border: 1px solid rgba(47, 107, 79, 0.13);
   border-radius: 999px;
   padding: 4px 9px;
   font-size: 13px;
