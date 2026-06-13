@@ -14,9 +14,9 @@ export function recipeListView(recipes: Recipe[], filters: { query?: string; sta
     <article class="recipe-card">
       <h2><a href="/recipes/${escapeHtml(recipe.id)}">${escapeHtml(recipe.title)}</a></h2>
       <div class="meta"><span>${statusLabels[recipe.status]}</span><span>${escapeHtml(hostFromUrl(recipe.url))}</span></div>
-      ${recipe.ingredients ? `<p><strong>材料</strong><br>${escapeHtml(recipe.ingredients.slice(0, 120))}</p>` : ""}
-      ${recipe.steps ? `<p><strong>手順</strong><br>${escapeHtml(recipe.steps.slice(0, 160))}</p>` : ""}
-      ${recipe.notes ? `<p>${escapeHtml(recipe.notes.slice(0, 120))}</p>` : ""}
+      ${recipe.ingredients ? `<p class="recipe-snippet"><strong>材料</strong><span>${escapeHtml(recipe.ingredients.slice(0, 120))}</span></p>` : ""}
+      ${recipe.steps ? `<p class="recipe-snippet"><strong>手順</strong><span>${escapeHtml(recipe.steps.slice(0, 160))}</span></p>` : ""}
+      ${recipe.notes ? `<p class="notes">${escapeHtml(recipe.notes.slice(0, 120))}</p>` : ""}
       <div class="tags">${recipe.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
     </article>
   `,
@@ -26,7 +26,7 @@ export function recipeListView(recipes: Recipe[], filters: { query?: string; sta
   return layout(
     "レシピ一覧",
     `
-    <div class="topbar"><h1>レシピ保存</h1><a class="button" href="/recipes/new">新規レシピ</a></div>
+    <div class="topbar"><div><p class="eyebrow">Recipe Vault</p><h1>レシピ保存</h1></div><a class="button" href="/recipes/new">新規レシピ</a></div>
     <form class="filters" method="get" action="/">
       <label>検索<input name="q" value="${escapeHtml(filters.query ?? "")}"></label>
       <label>ステータス<select name="status">
@@ -51,7 +51,7 @@ export function recipeFormView(options: { title: string; action: string; recipe?
   return layout(
     options.title,
     `
-    <div class="topbar"><h1>${escapeHtml(options.title)}</h1><a class="button secondary" href="/">一覧へ</a></div>
+    <div class="topbar"><div><p class="eyebrow">Recipe Vault</p><h1>${escapeHtml(options.title)}</h1></div><a class="button secondary" href="/">一覧へ</a></div>
     ${options.errors?.length ? `<div class="error">${options.errors.map(escapeHtml).join("<br>")}</div>` : ""}
     <form class="form" method="post" action="${escapeHtml(options.action)}">
       <label>URL<input required name="url" value="${escapeHtml(recipe.url ?? "")}"></label>
