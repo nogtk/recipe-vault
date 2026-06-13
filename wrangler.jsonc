@@ -8,6 +8,12 @@
     "enabled": true,
     "head_sampling_rate": 1
   },
+  "vars": {
+    "AI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
+  },
+  "ai": {
+    "binding": "AI"
+  },
   "d1_databases": [
     {
       "binding": "DB",

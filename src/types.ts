@@ -1,4 +1,8 @@
 export type Env = {
+  AI: {
+    run: (model: string, input: unknown) => Promise<unknown>;
+  };
+  AI_MODEL?: string;
   DB: D1Database;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;

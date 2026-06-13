@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { createRecipe, deleteRecipe, getRecipe, listRecipes, updateRecipe } from "../db/recipes";
 import { parseRecipeForm } from "../lib/forms";
+import { extractRecipeCandidate } from "../lib/recipe-extraction";
 import { fetchPageTitle, titleFromUrlFallback } from "../lib/url-title";
 import type { Env, RecipeStatus } from "../types";
 import { recipeFormView, recipeListView } from "../views/recipes";
@@ -28,6 +29,39 @@ recipeRoutes.post("/recipes", async (c) => {
   const title = result.value.title || (await fetchPageTitle(result.value.url)) || titleFromUrlFallback(result.value.url);
   const recipe = await createRecipe(c.env.DB, { ...result.value, title });
   return c.redirect(`/recipes/${recipe.id}`);
+});
+
+recipeRoutes.post("/recipes/extract", async (c) => {
+  const form = await c.req.formData();
+  const url = String(form.get("url") ?? "").trim();
+
+  try {
+    const candidate = await extractRecipeCandidate(c.env, url);
+    return c.html(
+      recipeFormView({
+        title: "新規レシピ",
+        action: "/recipes",
+        recipe: {
+          ...candidate,
+          status: String(form.get("status") || "want_to_make") === "made" ? "made" : "want_to_make",
+          tags: String(form.get("tags") ?? "")
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+        },
+      }),
+    );
+  } catch (error) {
+    return c.html(
+      recipeFormView({
+        title: "新規レシピ",
+        action: "/recipes",
+        recipe: { url },
+        errors: [error instanceof Error ? error.message : "AIで候補を作れませんでした。"],
+      }),
+      400,
+    );
+  }
 });
 
 recipeRoutes.get("/recipes/:id", async (c) => {

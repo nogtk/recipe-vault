@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import app from "../src/index";
+import { createSessionCookie } from "../src/lib/auth";
 import { recipeFormView } from "../src/views/recipes";
 
 const googleEnv = {
@@ -98,6 +99,35 @@ describe("app", () => {
     const res = await app.request("/recipes/new", { headers: { cookie } }, googleEnv);
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("新規レシピ");
+  });
+
+  it("URLからAIレシピ候補を作って新規フォームに反映する", async () => {
+    const cookie = (await createSessionCookie("naoga.taka@gmail.com", googleEnv.SESSION_SECRET)).split(";")[0];
+    const form = new FormData();
+    form.set("url", "https://example.com/recipe");
+    const ai = {
+      run: vi.fn(async () => ({
+        response: JSON.stringify({
+          title: "AI味噌汁",
+          ingredients: "味噌\n豆腐",
+          steps: "煮る",
+          notes: "Webページから抽出",
+        }),
+      })),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<html><head><title>味噌汁</title></head><body><p>味噌と豆腐を煮ます。だしを温め、豆腐を入れて、最後に味噌を溶きます。</p></body></html>", { headers: { "content-type": "text/html" } })),
+    );
+
+    const res = await app.request("/recipes/extract", { method: "POST", headers: { cookie }, body: form }, { ...googleEnv, AI: ai });
+    const html = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(html).toContain("AI味噌汁");
+    expect(html).toContain("味噌");
+    expect(html).toContain("Webページから抽出");
+    expect(ai.run).toHaveBeenCalled();
   });
 });
 

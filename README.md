@@ -7,6 +7,7 @@
 - Hono
 - Cloudflare Workers
 - Cloudflare D1
+- Cloudflare Workers AI
 - Googleログイン
 
 ## ローカル実行
@@ -53,6 +54,22 @@ npx wrangler secret put SESSION_SECRET
 
 ```bash
 npm run deploy
+```
+
+## AIレシピ抽出
+
+新規レシピ画面でURLを入力し、「AIで候補作成」を押すと、Webページ本文またはYouTubeの説明欄・字幕テキストから材料、手順、メモの候補を作ります。候補はそのまま保存せず、フォームで確認してから保存します。
+
+Workers AIモデルは `wrangler.jsonc` の `AI_MODEL` で変えられます。初期値は次です。
+
+```text
+@cf/qwen/qwen3-30b-a3b-fp8
+```
+
+さらに安さを優先する場合は、次のような軽量モデルに差し替えて試せます。
+
+```text
+@cf/ibm-granite/granite-4.0-h-micro
 ```
 
 ## アクセス制限
