@@ -7,14 +7,17 @@
 - Hono
 - Cloudflare Workers
 - Cloudflare D1
-- 簡易パスワードログイン
+- Googleログイン
 
 ## ローカル実行
 
 `.dev.vars.example` を参考に `.dev.vars` を作ります。
 
 ```bash
-APP_PASSWORD=ローカル用パスワード
+GOOGLE_CLIENT_ID=Google OAuth クライアントID
+GOOGLE_CLIENT_SECRET=Google OAuth クライアントシークレット
+ALLOWED_EMAIL=naoga.taka@gmail.com
+SESSION_SECRET=十分に長いランダム文字列
 ```
 
 ```bash
@@ -39,10 +42,13 @@ npx wrangler d1 migrations apply recipe-vault --remote
 
 ## デプロイ
 
-初回デプロイ前に、ログイン用パスワードをWorker secretとして設定します。
+初回デプロイ前に、Google OAuthとセッション用の値をWorker secretとして設定します。
 
 ```bash
-npx wrangler secret put APP_PASSWORD
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put ALLOWED_EMAIL
+npx wrangler secret put SESSION_SECRET
 ```
 
 ```bash
@@ -51,4 +57,10 @@ npm run deploy
 
 ## アクセス制限
 
-最初の版では、アプリ内の簡易パスワードログインで保護します。Cloudflare Accessを使う場合は、後からCloudflare Zero Trust側でこのアプリのドメインをGoogleログイン必須にし、本人のGoogleメールアドレスだけを許可します。
+アプリ内のGoogleログインで保護します。Google OAuthクライアントのリダイレクトURIには次を登録します。
+
+```text
+https://recipe-vault.nogtk.workers.dev/auth/google/callback
+```
+
+ログイン後のメールアドレスが `ALLOWED_EMAIL` と一致する場合だけ、アプリへ入れます。

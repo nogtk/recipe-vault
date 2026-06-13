@@ -1,6 +1,9 @@
 export type Env = {
   DB: D1Database;
-  APP_PASSWORD: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  ALLOWED_EMAIL: string;
+  SESSION_SECRET: string;
 };
 
 export type RecipeStatus = "want_to_make" | "made";
