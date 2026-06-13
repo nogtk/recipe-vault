@@ -3,7 +3,7 @@ import type { Env, RecipeInput } from "../types";
 
 const defaultAiModel = "@cf/meta/llama-3.1-8b-instruct-fast";
 const maxSourceChars = 24_000;
-const maxYouTubeHtmlChars = 1_200_000;
+const maxYouTubeHtmlChars = 2_000_000;
 
 type SourceText = {
   title: string;
@@ -107,9 +107,91 @@ function extractYouTubeDescription(playerResponse: unknown): string {
   return videoDetails?.shortDescription ?? "";
 }
 
+function extractJsonStringProperty(source: string, property: string): string | null {
+  const marker = `"${property}":`;
+  const markerIndex = source.indexOf(marker);
+  if (markerIndex === -1) return null;
+  const start = source.indexOf("\"", markerIndex + marker.length);
+  if (start === -1) return null;
+
+  let escaped = false;
+  for (let index = start + 1; index < source.length; index += 1) {
+    const char = source[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === "\"") {
+      try {
+        return JSON.parse(source.slice(start, index + 1));
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  return null;
+}
+
 function extractYouTubeTitle(playerResponse: unknown): string | null {
   const videoDetails = (playerResponse as { videoDetails?: { title?: string } })?.videoDetails;
   return videoDetails?.title ?? null;
+}
+
+function readPath(value: unknown, path: Array<string | number>): unknown {
+  return path.reduce<unknown>((current, key) => {
+    if (!current || typeof current !== "object") return undefined;
+    return (current as Record<string | number, unknown>)[key];
+  }, value);
+}
+
+function textFromRuns(value: unknown): string | null {
+  const runs = (value as { runs?: Array<{ text?: string }> })?.runs;
+  const text = runs?.map((run) => run.text ?? "").join("").trim();
+  return text || null;
+}
+
+function extractYouTubeNextTitle(nextResponse: unknown): string | null {
+  return textFromRuns(readPath(nextResponse, ["contents", "twoColumnWatchNextResults", "results", "results", "contents", 0, "videoPrimaryInfoRenderer", "title"]));
+}
+
+function extractYouTubeNextDescription(nextResponse: unknown): string {
+  const primaryDescription = readPath(nextResponse, [
+    "contents",
+    "twoColumnWatchNextResults",
+    "results",
+    "results",
+    "contents",
+    1,
+    "videoSecondaryInfoRenderer",
+    "attributedDescription",
+    "content",
+  ]);
+  if (typeof primaryDescription === "string") return primaryDescription;
+
+  const panels = (nextResponse as { engagementPanels?: unknown[] })?.engagementPanels ?? [];
+  for (const panel of panels) {
+    const items = readPath(panel, [
+      "engagementPanelSectionListRenderer",
+      "content",
+      "structuredDescriptionContentRenderer",
+      "items",
+    ]);
+    if (!Array.isArray(items)) continue;
+
+    for (const item of items) {
+      const description =
+        readPath(item, ["expandableVideoDescriptionBodyRenderer", "attributedDescriptionBodyText", "content"]) ??
+        readPath(item, ["expandableVideoDescriptionBodyRenderer", "colorSampledDescriptionBodyText", "content"]);
+      if (typeof description === "string") return description;
+    }
+  }
+
+  return "";
 }
 
 function extractCaptionUrl(playerResponse: unknown): string | null {
@@ -117,6 +199,38 @@ function extractCaptionUrl(playerResponse: unknown): string | null {
     captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ baseUrl?: string; languageCode?: string }> } };
   })?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
   return tracks?.find((track) => track.languageCode === "ja")?.baseUrl ?? tracks?.[0]?.baseUrl ?? null;
+}
+
+async function fetchYouTubeNextSource(url: string, videoId: string): Promise<SourceText | null> {
+  try {
+    const response = await fetch("https://www.youtube.com/youtubei/v1/next", {
+      method: "POST",
+      headers: {
+        "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+        "content-type": "application/json",
+        "user-agent": "Mozilla/5.0",
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: "WEB",
+            clientVersion: "2.20240601.00.00",
+          },
+        },
+      }),
+    });
+    if (!response.ok) return null;
+
+    const nextResponse = await response.json();
+    const title = extractYouTubeNextTitle(nextResponse) ?? titleFromUrlFallback(url);
+    const text = extractYouTubeNextDescription(nextResponse).slice(0, maxSourceChars);
+    if (!text) return null;
+
+    return { title, url, text };
+  } catch {
+    return null;
+  }
 }
 
 async function fetchYouTubePlayerSource(url: string, videoId: string): Promise<SourceText | null> {
@@ -174,7 +288,7 @@ async function fetchYouTubePlayerSource(url: string, videoId: string): Promise<S
 async function fetchYouTubeSource(url: string, html: string): Promise<SourceText> {
   const playerResponse = extractJsonObject(html, "ytInitialPlayerResponse") ?? {};
   const title = extractYouTubeTitle(playerResponse) ?? extractTitleFromHtml(html) ?? titleFromUrlFallback(url);
-  const description = extractYouTubeDescription(playerResponse);
+  const description = extractYouTubeDescription(playerResponse) || extractJsonStringProperty(html, "shortDescription") || "";
   const captionUrl = extractCaptionUrl(playerResponse);
   let transcript = "";
 
@@ -193,13 +307,18 @@ async function fetchYouTubeSource(url: string, html: string): Promise<SourceText
 async function fetchSourceText(url: string): Promise<SourceText> {
   const videoId = parseYouTubeVideoId(url);
   if (videoId) {
+    const nextSource = await fetchYouTubeNextSource(url, videoId);
+    if (nextSource?.text) return nextSource;
+
     const playerSource = await fetchYouTubePlayerSource(url, videoId);
     if (playerSource?.text) return playerSource;
   }
 
-  const response = await fetch(url, {
+  const fetchUrl = videoId ? `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&hl=ja&gl=JP` : url;
+  const response = await fetch(fetchUrl, {
     headers: {
-      "user-agent": "recipe-vault/1.0",
+      "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+      "user-agent": "Mozilla/5.0",
     },
   });
   if (!response.ok) throw new Error("URLの内容を取得できませんでした。");

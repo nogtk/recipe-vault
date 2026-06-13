@@ -66,12 +66,74 @@ describe("extractRecipeFromAiResponse", () => {
 });
 
 describe("extractRecipeCandidate", () => {
+  it("YouTube next APIの説明欄から候補を作る", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://www.youtube.com/youtubei/v1/next") {
+          return Response.json({
+            contents: {
+              twoColumnWatchNextResults: {
+                results: {
+                  results: {
+                    contents: [
+                      { videoPrimaryInfoRenderer: { title: { runs: [{ text: "至高の唐揚げ" }] } } },
+                      {
+                        videoSecondaryInfoRenderer: {
+                          attributedDescription: {
+                            content: "鶏モモ肉、醤油、みりん、酒を使います。片栗粉をつけて揚げます。",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const ai = {
+      run: vi.fn(async () => ({
+        response: {
+          title: "至高の唐揚げ",
+          ingredients: "鶏モモ肉\n醤油\nみりん\n酒\n片栗粉",
+          steps: "下味をつけて片栗粉をつけて揚げる",
+          notes: "YouTube説明欄から抽出",
+        },
+      })),
+    };
+
+    const candidate = await extractRecipeCandidate(
+      {
+        AI: ai,
+        DB: {} as D1Database,
+        GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
+        ALLOWED_EMAIL: "",
+        SESSION_SECRET: "",
+      },
+      "https://youtu.be/xGKn7TD9jaM?si=LZ_RMaNhGK5xzcE7",
+    );
+
+    expect(candidate.title).toBe("至高の唐揚げ");
+    expect(candidate.ingredients).toContain("鶏モモ肉");
+    expect(ai.run).toHaveBeenCalled();
+  });
+
   it("YouTubeプレイヤー情報APIの最初の応答が空なら別クライアントで再試行する", async () => {
+    let playerCalls = 0;
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === "https://www.youtube.com/youtubei/v1/player" && fetchMock.mock.calls.length === 1) {
-        return Response.json({ videoDetails: { title: "至高の唐揚げ", shortDescription: "" } });
+      if (url === "https://www.youtube.com/youtubei/v1/next") {
+        return new Response("not found", { status: 404 });
       }
       if (url === "https://www.youtube.com/youtubei/v1/player") {
+        playerCalls += 1;
+        if (playerCalls === 1) {
+          return Response.json({ videoDetails: { title: "至高の唐揚げ", shortDescription: "" } });
+        }
         return Response.json({
           videoDetails: {
             title: "至高の唐揚げ",
@@ -106,7 +168,7 @@ describe("extractRecipeCandidate", () => {
     );
 
     expect(candidate.title).toBe("至高の唐揚げ");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(ai.run).toHaveBeenCalled();
   });
 
@@ -114,6 +176,9 @@ describe("extractRecipeCandidate", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
+        if (url === "https://www.youtube.com/youtubei/v1/next") {
+          return new Response("not found", { status: 404 });
+        }
         if (url === "https://www.youtube.com/youtubei/v1/player") {
           return Response.json({
             videoDetails: {
