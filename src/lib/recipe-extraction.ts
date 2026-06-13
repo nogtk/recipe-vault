@@ -3,6 +3,7 @@ import type { Env, RecipeInput } from "../types";
 
 const defaultAiModel = "@cf/qwen/qwen3-30b-a3b-fp8";
 const maxSourceChars = 24_000;
+const maxYouTubeHtmlChars = 1_200_000;
 
 type SourceText = {
   title: string;
@@ -138,6 +139,7 @@ async function fetchYouTubeSource(url: string, html: string): Promise<SourceText
 }
 
 async function fetchSourceText(url: string): Promise<SourceText> {
+  const isYouTube = parseYouTubeVideoId(url) !== null;
   const response = await fetch(url, {
     headers: {
       "user-agent": "recipe-vault/1.0",
@@ -145,8 +147,8 @@ async function fetchSourceText(url: string): Promise<SourceText> {
   });
   if (!response.ok) throw new Error("URLの内容を取得できませんでした。");
 
-  const html = await limitedText(response);
-  if (parseYouTubeVideoId(url)) return fetchYouTubeSource(url, html);
+  const html = await limitedText(response, isYouTube ? maxYouTubeHtmlChars : maxSourceChars);
+  if (isYouTube) return fetchYouTubeSource(url, html);
 
   return {
     title: extractTitleFromHtml(html) ?? titleFromUrlFallback(url),
