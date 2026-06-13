@@ -120,44 +120,55 @@ function extractCaptionUrl(playerResponse: unknown): string | null {
 }
 
 async function fetchYouTubePlayerSource(url: string, videoId: string): Promise<SourceText | null> {
-  try {
-    const response = await fetch("https://www.youtube.com/youtubei/v1/player", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "user-agent": "Mozilla/5.0",
-      },
-      body: JSON.stringify({
-        videoId,
-        context: {
-          client: {
-            clientName: "WEB",
-            clientVersion: "2.20240601.00.00",
-          },
+  const clients = [
+    { clientName: "WEB", clientVersion: "2.20240601.00.00" },
+    { clientName: "MWEB", clientVersion: "2.20240601.00.00" },
+    { clientName: "ANDROID", clientVersion: "19.09.37", androidSdkVersion: 30 },
+  ];
+
+  for (const client of clients) {
+    try {
+      const response = await fetch("https://www.youtube.com/youtubei/v1/player", {
+        method: "POST",
+        headers: {
+          "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+          "content-type": "application/json",
+          "user-agent": "Mozilla/5.0",
         },
-      }),
-    });
-    if (!response.ok) return null;
+        body: JSON.stringify({
+          videoId,
+          context: {
+            client,
+          },
+        }),
+      });
+      if (!response.ok) continue;
 
-    const playerResponse = await response.json();
-    const title = extractYouTubeTitle(playerResponse) ?? titleFromUrlFallback(url);
-    const description = extractYouTubeDescription(playerResponse);
-    const captionUrl = extractCaptionUrl(playerResponse);
-    let transcript = "";
+      const playerResponse = await response.json();
+      const title = extractYouTubeTitle(playerResponse) ?? titleFromUrlFallback(url);
+      const description = extractYouTubeDescription(playerResponse);
+      const captionUrl = extractCaptionUrl(playerResponse);
+      let transcript = "";
 
-    if (captionUrl) {
-      const captionResponse = await fetch(captionUrl);
-      if (captionResponse.ok) transcript = transcriptXmlToText(await limitedText(captionResponse));
+      if (captionUrl) {
+        const captionResponse = await fetch(captionUrl);
+        if (captionResponse.ok) transcript = transcriptXmlToText(await limitedText(captionResponse));
+      }
+
+      const text = [description, transcript].filter(Boolean).join("\n\n").slice(0, maxSourceChars);
+      if (text) {
+        return {
+          title,
+          url,
+          text,
+        };
+      }
+    } catch {
+      continue;
     }
-
-    return {
-      title,
-      url,
-      text: [description, transcript].filter(Boolean).join("\n\n").slice(0, maxSourceChars),
-    };
-  } catch {
-    return null;
   }
+
+  return null;
 }
 
 async function fetchYouTubeSource(url: string, html: string): Promise<SourceText> {
