@@ -1,124 +1,124 @@
-# Recipe Vault Design
+# レシピ保存アプリ設計
 
-## Goal
+## 目的
 
-Build a small personal web app for saving recipes the user has made or wants to make. The first version should be public on the internet but private to the user through Cloudflare Access.
+自分が作ったレシピ、またはこれから作りたいレシピを保存するための小さな個人用Webアプリを作る。最初の版はインターネット上に公開するが、Cloudflare Accessで本人だけがアクセスできる状態にする。
 
-## Platform
+## 利用する基盤
 
-- Runtime: Cloudflare Workers
-- Web framework: Hono with TypeScript
-- Database: Cloudflare D1
-- Deployment: Wrangler
-- Access control: Cloudflare Access with Google login, restricted to the user's Google account
+- 実行環境: Cloudflare Workers
+- Webフレームワーク: Hono + TypeScript
+- データベース: Cloudflare D1
+- デプロイ: Wrangler
+- アクセス制限: Cloudflare Access + Googleログイン。許可するGoogleアカウントは本人のみ
 
-The app itself will not implement Google OAuth in the first version. Cloudflare Access protects the whole site before requests reach the Worker.
+最初の版では、アプリ本体にGoogle OAuthを実装しない。Cloudflare Accessでサイト全体を保護し、認証済みのリクエストだけがWorkerに届く構成にする。
 
-## User Experience
+## 体験
 
-The first screen is the recipe list. It supports search, status filtering, and tag filtering. The user can open an existing recipe, add a new recipe, edit details, or delete an entry.
+最初に表示する画面はレシピ一覧にする。一覧では検索、ステータス絞り込み、タグ絞り込みができる。既存レシピの表示、新規追加、編集、削除もここから行えるようにする。
 
-Recipe creation starts with a URL. The Worker fetches the page and attempts to read its HTML title. If title extraction fails, the app uses the URL as a temporary title and lets the user edit it.
+レシピ作成はURL入力から始める。Worker側で対象ページを取得し、HTMLのタイトルを読みにいく。タイトル取得に失敗した場合は、URLを仮タイトルとして保存し、あとから編集できるようにする。
 
-Each recipe stores:
+各レシピには次の情報を保存する。
 
 - URL
-- title
-- status: `want_to_make` or `made`
-- tags
-- ingredients
-- steps
-- notes
-- created and updated timestamps
+- タイトル
+- ステータス: `want_to_make` または `made`
+- タグ
+- 材料
+- 手順
+- メモ
+- 作成日時と更新日時
 
-## Screens
+## 画面
 
-### Recipe List
+### レシピ一覧
 
-Shows saved recipes in reverse update order. Each item displays title, status, tags, URL host, and a short note preview when present.
+保存済みレシピを更新日時の新しい順に表示する。各項目にはタイトル、ステータス、タグ、URLのホスト名、メモの短いプレビューを表示する。
 
-Controls:
+操作:
 
-- text search across title, URL, tags, ingredients, steps, and notes
-- status filter
-- tag filter
-- link to create a recipe
+- タイトル、URL、タグ、材料、手順、メモを対象にしたテキスト検索
+- ステータス絞り込み
+- タグ絞り込み
+- 新規作成画面へのリンク
 
-### New Recipe
+### 新規レシピ
 
-Provides a URL field plus optional fields for title, status, tags, ingredients, steps, and notes. If the title is blank, the server attempts to fetch the URL title on submit.
+URL入力欄と、任意入力のタイトル、ステータス、タグ、材料、手順、メモを表示する。タイトルが空の場合は、送信時にサーバー側でURL先のタイトル取得を試みる。
 
-### Recipe Detail and Edit
+### レシピ詳細・編集
 
-Shows all recipe fields in editable form. The user can update any field, open the source URL, or delete the recipe.
+すべてのレシピ項目を編集できるフォームとして表示する。ユーザーは各項目の更新、元URLを開く操作、レシピ削除ができる。
 
-## Data Model
+## データモデル
 
-Table: `recipes`
+テーブル: `recipes`
 
 - `id` text primary key
 - `url` text not null
 - `title` text not null
-- `status` text not null check constrained to `want_to_make` or `made`
-- `tags` text not null, stored as JSON array
+- `status` text not null。値は `want_to_make` または `made` に制限する
+- `tags` text not null。JSON配列として保存する
 - `ingredients` text not null default empty string
 - `steps` text not null default empty string
 - `notes` text not null default empty string
-- `created_at` text not null ISO timestamp
-- `updated_at` text not null ISO timestamp
+- `created_at` text not null。ISO形式の日時
+- `updated_at` text not null。ISO形式の日時
 
-Indexes:
+インデックス:
 
 - `idx_recipes_updated_at` on `updated_at`
 - `idx_recipes_status` on `status`
 
-## Routes
+## ルート
 
-- `GET /` list recipes
-- `GET /recipes/new` new recipe form
-- `POST /recipes` create recipe
-- `GET /recipes/:id` recipe detail and edit form
-- `POST /recipes/:id` update recipe
-- `POST /recipes/:id/delete` delete recipe
+- `GET /` レシピ一覧
+- `GET /recipes/new` 新規レシピフォーム
+- `POST /recipes` レシピ作成
+- `GET /recipes/:id` レシピ詳細・編集フォーム
+- `POST /recipes/:id` レシピ更新
+- `POST /recipes/:id/delete` レシピ削除
 
-## Architecture
+## アーキテクチャ
 
-The Worker entrypoint creates a typed Hono app with a D1 binding named `DB`.
+Workerのエントリーポイントで、D1バインディング `DB` を持つ型付きHonoアプリを作る。
 
-Code is split into small modules:
+コードは小さなモジュールに分ける。
 
-- `src/index.ts`: app setup and route registration
-- `src/routes/recipes.ts`: recipe routes and request handling
-- `src/db/recipes.ts`: D1 queries and row mapping
-- `src/views/layout.ts`: shared HTML layout
-- `src/views/recipes.ts`: list and form HTML
-- `src/lib/url-title.ts`: URL title fetching and parsing
-- `src/lib/forms.ts`: form parsing and validation helpers
+- `src/index.ts`: アプリ作成とルート登録
+- `src/routes/recipes.ts`: レシピ用ルートとリクエスト処理
+- `src/db/recipes.ts`: D1クエリと行データの変換
+- `src/views/layout.ts`: 共通HTMLレイアウト
+- `src/views/recipes.ts`: 一覧とフォームのHTML
+- `src/lib/url-title.ts`: URLタイトル取得とHTML解析
+- `src/lib/forms.ts`: フォーム解析とバリデーション補助
 
-Server-rendered HTML keeps the first version lightweight. CSS lives in `src/styles.ts` and is served by a route or embedded in the layout.
+最初の版はサーバー生成HTMLで軽く作る。CSSは `src/styles.ts` に置き、ルートから配信するか、レイアウトに埋め込む。
 
-## Validation and Errors
+## バリデーションとエラー
 
-URL is required and must parse as `http:` or `https:`. Title is required after fallback. Status must be one of the allowed values. Tags are split from comma-separated user input, trimmed, deduplicated, and stored as JSON.
+URLは必須で、`http:` または `https:` として解析できる必要がある。タイトルはフォールバック後に必須とする。ステータスは許可された値だけを受け付ける。タグはカンマ区切りの入力をトリムし、重複を除去してJSONとして保存する。
 
-When title fetching fails, creation still succeeds with a fallback title. User-facing errors return the form with a concise message. Unexpected errors return a generic error page and log structured details.
+タイトル取得に失敗しても、作成処理はフォールバックタイトルで成功させる。ユーザー向けのエラーは、短いメッセージ付きでフォームを再表示する。想定外エラーは汎用エラー画面を返し、構造化ログに詳細を出す。
 
-## Testing
+## テスト
 
-Unit tests cover:
+単体テストで確認する内容:
 
-- tag parsing
-- URL validation
-- title extraction from HTML
-- form payload normalization
+- タグ解析
+- URLバリデーション
+- HTMLからのタイトル抽出
+- フォーム入力の正規化
 
-Integration-level smoke checks cover:
+結合寄りのスモークチェックで確認する内容:
 
-- app builds with TypeScript
-- D1 migration SQL is valid
-- key routes render expected HTML
+- TypeScriptでビルドできること
+- D1マイグレーションSQLが有効であること
+- 主要ルートが想定したHTMLを返すこと
 
-## Deployment Notes
+## デプロイメモ
 
-Wrangler config defines the Worker, compatibility date, `nodejs_compat`, observability, and D1 binding. Cloudflare Access is configured outside the app in the Cloudflare dashboard or Zero Trust settings.
+Wrangler設定にはWorker、compatibility date、`nodejs_compat`、observability、D1バインディングを定義する。Cloudflare Accessはアプリ外部のCloudflareダッシュボード、またはZero Trust設定で構成する。
 
