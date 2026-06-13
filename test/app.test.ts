@@ -9,8 +9,30 @@ describe("app", () => {
     expect(res.headers.get("content-type")).toContain("text/css");
   });
 
-  it("新規レシピ画面を返す", async () => {
-    const res = await app.request("/recipes/new");
+  it("未ログインではログイン画面へ移動する", async () => {
+    const res = await app.request("/recipes/new", {}, { APP_PASSWORD: "secret" });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login");
+  });
+
+  it("正しいパスワードでログインCookieを返す", async () => {
+    const form = new FormData();
+    form.set("password", "secret");
+
+    const res = await app.request("/login", { method: "POST", body: form }, { APP_PASSWORD: "secret" });
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+    expect(res.headers.get("set-cookie")).toContain("recipe_session=");
+  });
+
+  it("ログイン済みなら新規レシピ画面を返す", async () => {
+    const loginForm = new FormData();
+    loginForm.set("password", "secret");
+    const loginRes = await app.request("/login", { method: "POST", body: loginForm }, { APP_PASSWORD: "secret" });
+    const cookie = loginRes.headers.get("set-cookie")?.split(";")[0] ?? "";
+
+    const res = await app.request("/recipes/new", { headers: { cookie } }, { APP_PASSWORD: "secret" });
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("新規レシピ");
   });

@@ -1,5 +1,6 @@
 export type Env = {
   DB: D1Database;
+  APP_PASSWORD: string;
 };
 
 export type RecipeStatus = "want_to_make" | "made";
