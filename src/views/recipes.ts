@@ -42,6 +42,10 @@ export function recipeListView(recipes: Recipe[], filters: { query?: string; sta
 
 export function recipeFormView(options: { title: string; action: string; recipe?: Partial<RecipeInput> & { id?: string }; errors?: string[] }): string {
   const recipe = options.recipe ?? {};
+  const extraActions = options.recipe?.id
+    ? `<a class="button secondary" href="${escapeHtml(options.recipe.url ?? "")}" target="_blank" rel="noreferrer">元URLを開く</a>
+       <button form="delete-form" type="submit">削除する</button>`
+    : "";
   return layout(
     options.title,
     `
@@ -58,8 +62,9 @@ export function recipeFormView(options: { title: string; action: string; recipe?
       <label>材料<textarea name="ingredients">${escapeHtml(recipe.ingredients ?? "")}</textarea></label>
       <label>手順<textarea name="steps">${escapeHtml(recipe.steps ?? "")}</textarea></label>
       <label>メモ<textarea name="notes">${escapeHtml(recipe.notes ?? "")}</textarea></label>
-      <div class="actions"><button type="submit">保存する</button></div>
+      <div class="actions"><button type="submit">保存する</button>${extraActions}</div>
     </form>
+    ${options.recipe?.id ? `<form id="delete-form" method="post" action="/recipes/${escapeHtml(options.recipe.id)}/delete"></form>` : ""}
   `,
   );
 }
