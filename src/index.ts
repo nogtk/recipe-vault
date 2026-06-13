@@ -9,6 +9,10 @@ app.get("/styles.css", (c) => {
   return c.text(styles, 200, { "content-type": "text/css; charset=utf-8" });
 });
 
+app.get("/favicon.ico", (c) => {
+  return c.body(null, 204);
+});
+
 app.route("/", recipeRoutes);
 
 app.notFound((c) => c.text("見つかりませんでした。", 404));
