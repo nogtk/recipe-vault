@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import app from "../src/index";
 import { createSessionCookie } from "../src/lib/auth";
-import { recipeFormView } from "../src/views/recipes";
+import { recipeFormView, recipeListView } from "../src/views/recipes";
 
 const googleEnv = {
   GOOGLE_CLIENT_ID: "client-id",
@@ -150,5 +150,32 @@ describe("recipeFormView", () => {
 
     expect(html).toContain("https://example.com/r");
     expect(html).toContain("/recipes/abc/delete");
+  });
+});
+
+describe("recipeListView", () => {
+  it("一覧カードに材料と手順の抜粋を表示する", () => {
+    const html = recipeListView(
+      [
+        {
+          id: "abc",
+          url: "https://example.com/r",
+          title: "唐揚げ",
+          status: "want_to_make",
+          tags: ["揚げ物"],
+          ingredients: "鶏モモ肉\n醤油\nみりん",
+          steps: "下味をつけて片栗粉をまぶし、中温で揚げる",
+          notes: "",
+          createdAt: "2026-06-14T00:00:00.000Z",
+          updatedAt: "2026-06-14T00:00:00.000Z",
+        },
+      ],
+      {},
+    );
+
+    expect(html).toContain("材料");
+    expect(html).toContain("鶏モモ肉");
+    expect(html).toContain("手順");
+    expect(html).toContain("中温で揚げる");
   });
 });

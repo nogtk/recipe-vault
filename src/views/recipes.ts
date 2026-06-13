@@ -14,6 +14,8 @@ export function recipeListView(recipes: Recipe[], filters: { query?: string; sta
     <article class="recipe-card">
       <h2><a href="/recipes/${escapeHtml(recipe.id)}">${escapeHtml(recipe.title)}</a></h2>
       <div class="meta"><span>${statusLabels[recipe.status]}</span><span>${escapeHtml(hostFromUrl(recipe.url))}</span></div>
+      ${recipe.ingredients ? `<p><strong>材料</strong><br>${escapeHtml(recipe.ingredients.slice(0, 120))}</p>` : ""}
+      ${recipe.steps ? `<p><strong>手順</strong><br>${escapeHtml(recipe.steps.slice(0, 160))}</p>` : ""}
       ${recipe.notes ? `<p>${escapeHtml(recipe.notes.slice(0, 120))}</p>` : ""}
       <div class="tags">${recipe.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
     </article>
