@@ -119,6 +119,47 @@ function extractCaptionUrl(playerResponse: unknown): string | null {
   return tracks?.find((track) => track.languageCode === "ja")?.baseUrl ?? tracks?.[0]?.baseUrl ?? null;
 }
 
+async function fetchYouTubePlayerSource(url: string, videoId: string): Promise<SourceText | null> {
+  try {
+    const response = await fetch("https://www.youtube.com/youtubei/v1/player", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "user-agent": "Mozilla/5.0",
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: "WEB",
+            clientVersion: "2.20240601.00.00",
+          },
+        },
+      }),
+    });
+    if (!response.ok) return null;
+
+    const playerResponse = await response.json();
+    const title = extractYouTubeTitle(playerResponse) ?? titleFromUrlFallback(url);
+    const description = extractYouTubeDescription(playerResponse);
+    const captionUrl = extractCaptionUrl(playerResponse);
+    let transcript = "";
+
+    if (captionUrl) {
+      const captionResponse = await fetch(captionUrl);
+      if (captionResponse.ok) transcript = transcriptXmlToText(await limitedText(captionResponse));
+    }
+
+    return {
+      title,
+      url,
+      text: [description, transcript].filter(Boolean).join("\n\n").slice(0, maxSourceChars),
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchYouTubeSource(url: string, html: string): Promise<SourceText> {
   const playerResponse = extractJsonObject(html, "ytInitialPlayerResponse") ?? {};
   const title = extractYouTubeTitle(playerResponse) ?? extractTitleFromHtml(html) ?? titleFromUrlFallback(url);
@@ -139,7 +180,12 @@ async function fetchYouTubeSource(url: string, html: string): Promise<SourceText
 }
 
 async function fetchSourceText(url: string): Promise<SourceText> {
-  const isYouTube = parseYouTubeVideoId(url) !== null;
+  const videoId = parseYouTubeVideoId(url);
+  if (videoId) {
+    const playerSource = await fetchYouTubePlayerSource(url, videoId);
+    if (playerSource?.text) return playerSource;
+  }
+
   const response = await fetch(url, {
     headers: {
       "user-agent": "recipe-vault/1.0",
@@ -147,8 +193,8 @@ async function fetchSourceText(url: string): Promise<SourceText> {
   });
   if (!response.ok) throw new Error("URLの内容を取得できませんでした。");
 
-  const html = await limitedText(response, isYouTube ? maxYouTubeHtmlChars : maxSourceChars);
-  if (isYouTube) return fetchYouTubeSource(url, html);
+  const html = await limitedText(response, videoId ? maxYouTubeHtmlChars : maxSourceChars);
+  if (videoId) return fetchYouTubeSource(url, html);
 
   return {
     title: extractTitleFromHtml(html) ?? titleFromUrlFallback(url),

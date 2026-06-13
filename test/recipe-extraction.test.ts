@@ -66,6 +66,49 @@ describe("extractRecipeFromAiResponse", () => {
 });
 
 describe("extractRecipeCandidate", () => {
+  it("YouTubeプレイヤー情報APIの説明欄から候補を作る", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://www.youtube.com/youtubei/v1/player") {
+          return Response.json({
+            videoDetails: {
+              title: "至高の唐揚げ",
+              shortDescription: "鶏モモ肉、醤油、みりん、酒を使います。片栗粉をつけて揚げます。",
+            },
+          });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const ai = {
+      run: vi.fn(async () => ({
+        response: {
+          title: "至高の唐揚げ",
+          ingredients: "鶏モモ肉\n醤油\nみりん\n酒\n片栗粉",
+          steps: "下味をつけて片栗粉をつけて揚げる",
+          notes: "YouTube説明欄から抽出",
+        },
+      })),
+    };
+
+    const candidate = await extractRecipeCandidate(
+      {
+        AI: ai,
+        DB: {} as D1Database,
+        GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
+        ALLOWED_EMAIL: "",
+        SESSION_SECRET: "",
+      },
+      "https://youtu.be/xGKn7TD9jaM?si=9dv-TX8EqunNL0-o",
+    );
+
+    expect(candidate.title).toBe("至高の唐揚げ");
+    expect(candidate.steps).toContain("揚げる");
+    expect(ai.run).toHaveBeenCalled();
+  });
+
   it("YouTube情報がHTMLの後方にあっても説明欄を使って候補を作る", async () => {
     const longPadding = "x".repeat(30_000);
     const youtubeHtml = `${longPadding}<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"至高の唐揚げ","shortDescription":"鶏モモ肉、醤油、みりん、酒を使います。揚げます。"}};</script>`;
