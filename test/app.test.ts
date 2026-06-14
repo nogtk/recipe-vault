@@ -52,7 +52,11 @@ describe("app", () => {
       }),
     );
 
-    const res = await app.request("/auth/google/callback?code=abc&state=state-1", { headers: { cookie: "oauth_state=state-1" } }, googleEnv);
+    const res = await app.request(
+      "/auth/google/callback?code=abc&state=state-1",
+      { headers: { cookie: "oauth_state=state-1" } },
+      googleEnv,
+    );
 
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/");
@@ -73,7 +77,11 @@ describe("app", () => {
       }),
     );
 
-    const res = await app.request("/auth/google/callback?code=abc&state=state-1", { headers: { cookie: "oauth_state=state-1" } }, googleEnv);
+    const res = await app.request(
+      "/auth/google/callback?code=abc&state=state-1",
+      { headers: { cookie: "oauth_state=state-1" } },
+      googleEnv,
+    );
 
     expect(res.status).toBe(403);
     expect(await res.text()).toContain("許可されていないGoogleアカウントです。");
@@ -93,7 +101,11 @@ describe("app", () => {
       }),
     );
 
-    const loginRes = await app.request("/auth/google/callback?code=abc&state=state-1", { headers: { cookie: "oauth_state=state-1" } }, googleEnv);
+    const loginRes = await app.request(
+      "/auth/google/callback?code=abc&state=state-1",
+      { headers: { cookie: "oauth_state=state-1" } },
+      googleEnv,
+    );
     const cookie = loginRes.headers.get("set-cookie")?.split(";")[0] ?? "";
 
     const res = await app.request("/recipes/new", { headers: { cookie } }, googleEnv);
@@ -117,10 +129,20 @@ describe("app", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response("<html><head><title>味噌汁</title></head><body><p>味噌と豆腐を煮ます。だしを温め、豆腐を入れて、最後に味噌を溶きます。</p></body></html>", { headers: { "content-type": "text/html" } })),
+      vi.fn(
+        async () =>
+          new Response(
+            "<html><head><title>味噌汁</title></head><body><p>味噌と豆腐を煮ます。だしを温め、豆腐を入れて、最後に味噌を溶きます。</p></body></html>",
+            { headers: { "content-type": "text/html" } },
+          ),
+      ),
     );
 
-    const res = await app.request("/recipes/extract", { method: "POST", headers: { cookie }, body: form }, { ...googleEnv, AI: ai });
+    const res = await app.request(
+      "/recipes/extract",
+      { method: "POST", headers: { cookie }, body: form },
+      { ...googleEnv, AI: ai },
+    );
     const html = await res.text();
 
     expect(res.status).toBe(200);

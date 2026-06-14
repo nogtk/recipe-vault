@@ -6,19 +6,19 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "head_sampling_rate": 1,
   },
   "vars": {
-    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast"
+    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
   },
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "recipe-vault",
-      "database_id": "ea4c70d4-64a7-4a35-a95e-16c87de76a06"
-    }
-  ]
+      "database_id": "ea4c70d4-64a7-4a35-a95e-16c87de76a06",
+    },
+  ],
 }
