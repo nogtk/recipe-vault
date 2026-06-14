@@ -61,6 +61,8 @@ export function parseYouTubeVideoId(url: string): string | null {
       parsed.hostname === "youtube.com" ||
       parsed.hostname === "m.youtube.com"
     ) {
+      const pathVideoId = parsed.pathname.match(/^\/(?:shorts|live|embed)\/([^/?#]+)/)?.[1];
+      if (pathVideoId) return pathVideoId;
       return parsed.searchParams.get("v");
     }
     return null;
@@ -621,6 +623,9 @@ export async function extractRecipeCandidate(env: Env, url: string): Promise<Rec
   }
 
   const recipe = await runRecipeAi(env, source);
+  if (!recipe.ingredients && !recipe.steps) {
+    throw new Error("レシピ化できる材料や手順が見つかりませんでした。");
+  }
 
   return {
     url,
