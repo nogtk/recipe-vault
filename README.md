@@ -33,7 +33,7 @@ npm run dev
 ```bash
 git fetch origin
 git wt codex/<task-slug> origin/main --nocd
-cd ../receipt-wt/codex/<task-slug>
+cd .worktrees/codex/<task-slug>
 npm ci
 npm run check
 ```

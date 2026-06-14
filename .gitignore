@@ -1,4 +1,5 @@
 node_modules/
+.worktrees/
 .wrangler/
 .playwright-mcp/
 .dev.vars
