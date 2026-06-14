@@ -56,6 +56,27 @@ npx wrangler secret put SESSION_SECRET
 npm run deploy
 ```
 
+## CI/CD
+
+GitHub Actionsで次の流れにしています。
+
+- PR作成時: 型チェック、テスト、Wranglerのdry-run
+- `main` へのpush時: 型チェック、テスト、本番Workerへのデプロイ
+- 手動実行: GitHub ActionsのDeploy workflowから本番デプロイ
+
+GitHubリポジトリには次を設定します。
+
+```text
+Variables:
+CLOUDFLARE_ACCOUNT_ID=6f937ca88057fd373967f2ec972614e0
+
+Secrets:
+CLOUDFLARE_API_TOKEN=Cloudflare WorkersをデプロイできるAPIトークン
+```
+
+`CLOUDFLARE_API_TOKEN` には、Cloudflare Workers ScriptsとD1を更新できる権限を付けます。
+Google OAuthやセッション用の値はGitHub Secretsではなく、Cloudflare Worker secretとして管理します。
+
 ## AIレシピ抽出
 
 新規レシピ画面でURLを入力し、「AIで候補作成」を押すと、Webページ本文またはYouTubeの説明欄・字幕テキストから材料、手順、メモの候補を作ります。候補はそのまま保存せず、フォームで確認してから保存します。
