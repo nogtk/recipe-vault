@@ -26,7 +26,8 @@ recipeRoutes.post("/recipes", async (c) => {
   if (!result.ok) {
     return c.html(recipeFormView({ title: "新規レシピ", action: "/recipes", errors: result.errors }), 400);
   }
-  const title = result.value.title || (await fetchPageTitle(result.value.url)) || titleFromUrlFallback(result.value.url);
+  const title =
+    result.value.title || (await fetchPageTitle(result.value.url)) || titleFromUrlFallback(result.value.url);
   const recipe = await createRecipe(c.env.DB, { ...result.value, title });
   return c.redirect(`/recipes/${recipe.id}`);
 });

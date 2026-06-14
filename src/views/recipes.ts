@@ -43,7 +43,12 @@ export function recipeListView(recipes: Recipe[], filters: { query?: string; sta
   );
 }
 
-export function recipeFormView(options: { title: string; action: string; recipe?: Partial<RecipeInput> & { id?: string }; errors?: string[] }): string {
+export function recipeFormView(options: {
+  title: string;
+  action: string;
+  recipe?: Partial<RecipeInput> & { id?: string };
+  errors?: string[];
+}): string {
   const recipe = options.recipe ?? {};
   const extraActions = options.recipe?.id
     ? `<a class="button secondary" href="${escapeHtml(options.recipe.url ?? "")}" target="_blank" rel="noreferrer">元URLを開く</a>

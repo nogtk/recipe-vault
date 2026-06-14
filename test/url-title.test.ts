@@ -3,7 +3,9 @@ import { extractTitleFromHtml, titleFromUrlFallback } from "../src/lib/url-title
 
 describe("extractTitleFromHtml", () => {
   it("HTMLのtitle要素からタイトルを取り出す", () => {
-    expect(extractTitleFromHtml("<html><head><title>  肉じゃが &amp; 味噌汁  </title></head></html>")).toBe("肉じゃが & 味噌汁");
+    expect(extractTitleFromHtml("<html><head><title>  肉じゃが &amp; 味噌汁  </title></head></html>")).toBe(
+      "肉じゃが & 味噌汁",
+    );
   });
 
   it("titleがない場合はnullを返す", () => {

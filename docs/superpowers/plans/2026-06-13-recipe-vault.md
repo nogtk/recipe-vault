@@ -34,6 +34,7 @@
 ## タスク 1: プロジェクト設定と依存関係
 
 **対象ファイル:**
+
 - 作成: `package.json`
 - 作成: `tsconfig.json`
 - 作成: `vitest.config.ts`
@@ -108,15 +109,15 @@ export default defineConfig({
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "head_sampling_rate": 1,
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "recipe-vault",
-      "database_id": "00000000-0000-0000-0000-000000000000"
-    }
-  ]
+      "database_id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
 }
 ```
 
@@ -144,6 +145,7 @@ git commit -m "chore: Hono Workersプロジェクトを設定する"
 ## タスク 2: DBスキーマと型定義
 
 **対象ファイル:**
+
 - 作成: `migrations/0001_create_recipes.sql`
 - 作成: `src/types.ts`
 - 作成: `src/db/recipes.ts`
@@ -268,7 +270,14 @@ type ParseResult<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 const statuses: RecipeStatus[] = ["want_to_make", "made"];
 
 export function parseTags(value: string): string[] {
-  return [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 export function validateRecipeUrl(value: string): ParseResult<string> {
@@ -372,7 +381,10 @@ export async function listRecipes(db: D1Database, filters: ListFilters): Promise
   }
 
   const sql = `SELECT * FROM recipes ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY updated_at DESC`;
-  const result = await db.prepare(sql).bind(...params).all<RecipeRow>();
+  const result = await db
+    .prepare(sql)
+    .bind(...params)
+    .all<RecipeRow>();
   return result.results.map(toRecipe);
 }
 
@@ -384,10 +396,22 @@ export async function getRecipe(db: D1Database, id: string): Promise<Recipe | nu
 export async function createRecipe(db: D1Database, input: RecipeInput): Promise<Recipe> {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
-  await db.prepare(
-    "INSERT INTO recipes (id, url, title, status, tags, ingredients, steps, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-  )
-    .bind(id, input.url, input.title, input.status, JSON.stringify(input.tags), input.ingredients, input.steps, input.notes, now, now)
+  await db
+    .prepare(
+      "INSERT INTO recipes (id, url, title, status, tags, ingredients, steps, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(
+      id,
+      input.url,
+      input.title,
+      input.status,
+      JSON.stringify(input.tags),
+      input.ingredients,
+      input.steps,
+      input.notes,
+      now,
+      now,
+    )
     .run();
   const recipe = await getRecipe(db, id);
   if (!recipe) throw new Error("作成したレシピを読み込めませんでした。");
@@ -395,10 +419,21 @@ export async function createRecipe(db: D1Database, input: RecipeInput): Promise<
 }
 
 export async function updateRecipe(db: D1Database, id: string, input: RecipeInput): Promise<void> {
-  await db.prepare(
-    "UPDATE recipes SET url = ?, title = ?, status = ?, tags = ?, ingredients = ?, steps = ?, notes = ?, updated_at = ? WHERE id = ?",
-  )
-    .bind(input.url, input.title, input.status, JSON.stringify(input.tags), input.ingredients, input.steps, input.notes, new Date().toISOString(), id)
+  await db
+    .prepare(
+      "UPDATE recipes SET url = ?, title = ?, status = ?, tags = ?, ingredients = ?, steps = ?, notes = ?, updated_at = ? WHERE id = ?",
+    )
+    .bind(
+      input.url,
+      input.title,
+      input.status,
+      JSON.stringify(input.tags),
+      input.ingredients,
+      input.steps,
+      input.notes,
+      new Date().toISOString(),
+      id,
+    )
     .run();
 }
 
@@ -423,6 +458,7 @@ git commit -m "feat: レシピ保存用のDB層を追加する"
 ## タスク 3: URLタイトル取得
 
 **対象ファイル:**
+
 - 作成: `src/lib/url-title.ts`
 - テスト: `test/url-title.test.ts`
 
@@ -434,7 +470,9 @@ import { extractTitleFromHtml, titleFromUrlFallback } from "../src/lib/url-title
 
 describe("extractTitleFromHtml", () => {
   it("HTMLのtitle要素からタイトルを取り出す", () => {
-    expect(extractTitleFromHtml("<html><head><title>  肉じゃが &amp; 味噌汁  </title></head></html>")).toBe("肉じゃが & 味噌汁");
+    expect(extractTitleFromHtml("<html><head><title>  肉じゃが &amp; 味噌汁  </title></head></html>")).toBe(
+      "肉じゃが & 味噌汁",
+    );
   });
 
   it("titleがない場合はnullを返す", () => {
@@ -462,7 +500,7 @@ const entities: Record<string, string> = {
   "&amp;": "&",
   "&lt;": "<",
   "&gt;": ">",
-  "&quot;": "\"",
+  "&quot;": '"',
   "&#39;": "'",
 };
 
@@ -514,6 +552,7 @@ git commit -m "feat: URL先のタイトル抽出を追加する"
 ## タスク 4: HTML表示とHonoルート
 
 **対象ファイル:**
+
 - 作成: `src/lib/html.ts`
 - 作成: `src/styles.ts`
 - 作成: `src/views/layout.ts`
@@ -557,7 +596,7 @@ export function escapeHtml(value: string): string {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
+    .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
 
@@ -658,16 +697,22 @@ const statusLabels: Record<RecipeStatus, string> = {
 };
 
 export function recipeListView(recipes: Recipe[], filters: { query?: string; status?: string; tag?: string }): string {
-  const cards = recipes.map((recipe) => `
+  const cards = recipes
+    .map(
+      (recipe) => `
     <article class="recipe-card">
       <h2><a href="/recipes/${escapeHtml(recipe.id)}">${escapeHtml(recipe.title)}</a></h2>
       <div class="meta"><span>${statusLabels[recipe.status]}</span><span>${escapeHtml(hostFromUrl(recipe.url))}</span></div>
       ${recipe.notes ? `<p>${escapeHtml(recipe.notes.slice(0, 120))}</p>` : ""}
       <div class="tags">${recipe.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
     </article>
-  `).join("");
+  `,
+    )
+    .join("");
 
-  return layout("レシピ一覧", `
+  return layout(
+    "レシピ一覧",
+    `
     <div class="topbar"><h1>レシピ保存</h1><a class="button" href="/recipes/new">新規レシピ</a></div>
     <form class="filters" method="get" action="/">
       <label>検索<input name="q" value="${escapeHtml(filters.query ?? "")}"></label>
@@ -680,12 +725,20 @@ export function recipeListView(recipes: Recipe[], filters: { query?: string; sta
       <button type="submit">絞り込む</button>
     </form>
     <section class="recipe-list">${cards || "<p>まだレシピがありません。</p>"}</section>
-  `);
+  `,
+  );
 }
 
-export function recipeFormView(options: { title: string; action: string; recipe?: Partial<RecipeInput> & { id?: string }; errors?: string[] }): string {
+export function recipeFormView(options: {
+  title: string;
+  action: string;
+  recipe?: Partial<RecipeInput> & { id?: string };
+  errors?: string[];
+}): string {
   const recipe = options.recipe ?? {};
-  return layout(options.title, `
+  return layout(
+    options.title,
+    `
     <div class="topbar"><h1>${escapeHtml(options.title)}</h1><a class="button secondary" href="/">一覧へ</a></div>
     ${options.errors?.length ? `<div class="error">${options.errors.map(escapeHtml).join("<br>")}</div>` : ""}
     <form class="form" method="post" action="${escapeHtml(options.action)}">
@@ -701,7 +754,8 @@ export function recipeFormView(options: { title: string; action: string; recipe?
       <label>メモ<textarea name="notes">${escapeHtml(recipe.notes ?? "")}</textarea></label>
       <div class="actions"><button type="submit">保存する</button></div>
     </form>
-  `);
+  `,
+  );
 }
 ```
 
@@ -734,7 +788,8 @@ recipeRoutes.post("/recipes", async (c) => {
   if (!result.ok) {
     return c.html(recipeFormView({ title: "新規レシピ", action: "/recipes", errors: result.errors }), 400);
   }
-  const title = result.value.title || (await fetchPageTitle(result.value.url)) || titleFromUrlFallback(result.value.url);
+  const title =
+    result.value.title || (await fetchPageTitle(result.value.url)) || titleFromUrlFallback(result.value.url);
   const recipe = await createRecipe(c.env.DB, { ...result.value, title });
   return c.redirect(`/recipes/${recipe.id}`);
 });
@@ -799,6 +854,7 @@ git commit -m "feat: レシピ画面とルートを追加する"
 ## タスク 5: 削除操作と詳細画面の仕上げ
 
 **対象ファイル:**
+
 - 変更: `src/views/recipes.ts`
 - 変更: `test/app.test.ts`
 
@@ -876,6 +932,7 @@ git commit -m "feat: レシピ編集画面に削除操作を追加する"
 ## タスク 6: 全体検証とCloudflare用メモ
 
 **対象ファイル:**
+
 - 作成: `README.md`
 
 - [ ] **ステップ 1: READMEを作成する**
@@ -956,4 +1013,3 @@ git commit -m "docs: レシピ保存アプリの運用手順を追加する"
 - Cloudflare Accessはアプリ外設定なので、READMEに手順として明記した。
 - アプリ内コメントや画面文言は日本語で統一する。コード識別子、パッケージ名、Cloudflare設定キーは英語のままにする。
 - `wrangler.jsonc` の `database_id` は実際のD1作成後に差し替える必要がある。これはCloudflare側で発行される値のため、計画内に差し替え手順を明記した。
-

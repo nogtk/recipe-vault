@@ -55,7 +55,10 @@ export async function listRecipes(db: D1Database, filters: ListFilters): Promise
   }
 
   const sql = `SELECT * FROM recipes ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY updated_at DESC`;
-  const result = await db.prepare(sql).bind(...params).all<RecipeRow>();
+  const result = await db
+    .prepare(sql)
+    .bind(...params)
+    .all<RecipeRow>();
   return result.results.map(toRecipe);
 }
 
@@ -71,7 +74,18 @@ export async function createRecipe(db: D1Database, input: RecipeInput): Promise<
     .prepare(
       "INSERT INTO recipes (id, url, title, status, tags, ingredients, steps, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
-    .bind(id, input.url, input.title, input.status, JSON.stringify(input.tags), input.ingredients, input.steps, input.notes, now, now)
+    .bind(
+      id,
+      input.url,
+      input.title,
+      input.status,
+      JSON.stringify(input.tags),
+      input.ingredients,
+      input.steps,
+      input.notes,
+      now,
+      now,
+    )
     .run();
   const recipe = await getRecipe(db, id);
   if (!recipe) throw new Error("作成したレシピを読み込めませんでした。");
@@ -80,8 +94,20 @@ export async function createRecipe(db: D1Database, input: RecipeInput): Promise<
 
 export async function updateRecipe(db: D1Database, id: string, input: RecipeInput): Promise<void> {
   await db
-    .prepare("UPDATE recipes SET url = ?, title = ?, status = ?, tags = ?, ingredients = ?, steps = ?, notes = ?, updated_at = ? WHERE id = ?")
-    .bind(input.url, input.title, input.status, JSON.stringify(input.tags), input.ingredients, input.steps, input.notes, new Date().toISOString(), id)
+    .prepare(
+      "UPDATE recipes SET url = ?, title = ?, status = ?, tags = ?, ingredients = ?, steps = ?, notes = ?, updated_at = ? WHERE id = ?",
+    )
+    .bind(
+      input.url,
+      input.title,
+      input.status,
+      JSON.stringify(input.tags),
+      input.ingredients,
+      input.steps,
+      input.notes,
+      new Date().toISOString(),
+      id,
+    )
     .run();
 }
 

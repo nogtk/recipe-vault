@@ -42,7 +42,9 @@ describe("transcriptXmlToText", () => {
 
 describe("extractRecipeJson", () => {
   it("AI出力に余計な文字があってもJSON部分を取り出す", () => {
-    const recipe = extractRecipeJson(`結果です\n{"title":"味噌汁","ingredients":"味噌\\n豆腐","steps":"煮る","notes":"本文から抽出"}\n以上`);
+    const recipe = extractRecipeJson(
+      `結果です\n{"title":"味噌汁","ingredients":"味噌\\n豆腐","steps":"煮る","notes":"本文から抽出"}\n以上`,
+    );
 
     expect(recipe).toEqual({
       title: "味噌汁",
@@ -116,7 +118,10 @@ describe("extractRecipeCandidate", () => {
       </script>
       </body></html>
     `;
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(html)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(html)),
+    );
     const ai = {
       run: vi.fn(async () => ({
         response: {
@@ -195,7 +200,9 @@ describe("extractRecipeCandidate", () => {
       },
       "https://youtu.be/xGKn7TD9jaM?si=LZ_RMaNhGK5xzcE7",
     );
-    const nextRequestInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as RequestInit | undefined;
+    const nextRequestInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as
+      | RequestInit
+      | undefined;
     const requestBody = JSON.parse(String(nextRequestInit?.body));
 
     expect(candidate.title).toBe("至高の唐揚げ");
@@ -423,7 +430,10 @@ describe("extractRecipeCandidate", () => {
   it("YouTube情報がHTMLの後方にあっても説明欄を使って候補を作る", async () => {
     const longPadding = "x".repeat(30_000);
     const youtubeHtml = `${longPadding}<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"至高の唐揚げ","shortDescription":"鶏モモ肉、醤油、みりん、酒を使います。揚げます。"}};</script>`;
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(youtubeHtml)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(youtubeHtml)),
+    );
     const ai = {
       run: vi.fn(async () => ({
         response: {

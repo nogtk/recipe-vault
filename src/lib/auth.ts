@@ -29,7 +29,10 @@ function parseCookie(header: string | undefined): Record<string, string> {
 }
 
 function base64Url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
 }
 
 function base64UrlEncodeText(value: string): string {
@@ -37,13 +40,22 @@ function base64UrlEncodeText(value: string): string {
 }
 
 function base64UrlDecodeText(value: string): string {
-  const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const padded = value
+    .replaceAll("-", "+")
+    .replaceAll("_", "/")
+    .padEnd(Math.ceil(value.length / 4) * 4, "=");
   const binary = atob(padded);
   return new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
 }
 
 async function hmacSha256(value: string, secret: string): Promise<string> {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
   return base64Url(new Uint8Array(signature));
 }
@@ -63,7 +75,9 @@ export function requiredAuthEnv(env: Env): string | null {
 }
 
 export async function createSessionCookie(email: string, secret: string): Promise<string> {
-  const payload = base64UrlEncodeText(JSON.stringify({ email, exp: Math.floor(Date.now() / 1000) + sessionMaxAgeSeconds }));
+  const payload = base64UrlEncodeText(
+    JSON.stringify({ email, exp: Math.floor(Date.now() / 1000) + sessionMaxAgeSeconds }),
+  );
   const signature = await hmacSha256(payload, secret);
   return `${sessionCookieName}=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${sessionMaxAgeSeconds}`;
 }
@@ -90,7 +104,12 @@ export async function hasValidSession(c: Context<{ Bindings: Env }>): Promise<bo
 }
 
 export async function requireAuth(c: Context<{ Bindings: Env }>, next: Next): Promise<Response | void> {
-  if (c.req.path === "/login" || c.req.path === "/auth/google/callback" || c.req.path === "/styles.css" || c.req.path === "/favicon.ico") {
+  if (
+    c.req.path === "/login" ||
+    c.req.path === "/auth/google/callback" ||
+    c.req.path === "/styles.css" ||
+    c.req.path === "/favicon.ico"
+  ) {
     await next();
     return;
   }

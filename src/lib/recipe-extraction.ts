@@ -20,7 +20,7 @@ function decodeBasicEntities(value: string): string {
     .replaceAll("&amp;", "&")
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", "\"")
+    .replaceAll("&quot;", '"')
     .replaceAll("&#39;", "'");
 }
 
@@ -56,7 +56,11 @@ export function parseYouTubeVideoId(url: string): string | null {
   try {
     const parsed = new URL(url);
     if (parsed.hostname === "youtu.be") return parsed.pathname.slice(1) || null;
-    if (parsed.hostname === "www.youtube.com" || parsed.hostname === "youtube.com" || parsed.hostname === "m.youtube.com") {
+    if (
+      parsed.hostname === "www.youtube.com" ||
+      parsed.hostname === "youtube.com" ||
+      parsed.hostname === "m.youtube.com"
+    ) {
       return parsed.searchParams.get("v");
     }
     return null;
@@ -66,7 +70,10 @@ export function parseYouTubeVideoId(url: string): string | null {
 }
 
 export function transcriptXmlToText(xml: string): string {
-  return [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((match) => normalizeText(match[1])).filter(Boolean).join("\n");
+  return [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)]
+    .map((match) => normalizeText(match[1]))
+    .filter(Boolean)
+    .join("\n");
 }
 
 function arrayFromValue(value: unknown): unknown[] {
@@ -100,7 +107,9 @@ function textFromInstruction(value: unknown): string[] {
   return [...ownText, ...arrayFromValue(item.itemListElement).flatMap(textFromInstruction)];
 }
 
-export function extractRecipeStructuredData(html: string): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> | null {
+export function extractRecipeStructuredData(
+  html: string,
+): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> | null {
   const scripts = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   for (const script of scripts) {
     try {
@@ -116,9 +125,13 @@ export function extractRecipeStructuredData(html: string): Pick<RecipeCandidate,
         | undefined;
       if (!recipe) continue;
 
-      const ingredients = arrayFromValue(recipe.recipeIngredient).map((value) => normalizeText(String(value))).filter(Boolean);
+      const ingredients = arrayFromValue(recipe.recipeIngredient)
+        .map((value) => normalizeText(String(value)))
+        .filter(Boolean);
       const steps = arrayFromValue(recipe.recipeInstructions).flatMap(textFromInstruction).filter(Boolean);
-      const notes = [recipe.description, recipe.recipeYield ? `分量: ${String(recipe.recipeYield)}` : ""].map((value) => normalizeText(value ?? "")).filter(Boolean);
+      const notes = [recipe.description, recipe.recipeYield ? `分量: ${String(recipe.recipeYield)}` : ""]
+        .map((value) => normalizeText(value ?? ""))
+        .filter(Boolean);
 
       if (ingredients.length || steps.length) {
         return {
@@ -152,12 +165,12 @@ function extractJsonObject(source: string, marker: string): unknown | null {
         escaped = false;
       } else if (char === "\\") {
         escaped = true;
-      } else if (char === "\"") {
+      } else if (char === '"') {
         inString = false;
       }
       continue;
     }
-    if (char === "\"") inString = true;
+    if (char === '"') inString = true;
     if (char === "{") depth += 1;
     if (char === "}") depth -= 1;
     if (depth === 0) {
@@ -180,7 +193,7 @@ function extractJsonStringProperty(source: string, property: string): string | n
   const marker = `"${property}":`;
   const markerIndex = source.indexOf(marker);
   if (markerIndex === -1) return null;
-  const start = source.indexOf("\"", markerIndex + marker.length);
+  const start = source.indexOf('"', markerIndex + marker.length);
   if (start === -1) return null;
 
   let escaped = false;
@@ -194,7 +207,7 @@ function extractJsonStringProperty(source: string, property: string): string | n
       escaped = true;
       continue;
     }
-    if (char === "\"") {
+    if (char === '"') {
       try {
         return JSON.parse(source.slice(start, index + 1));
       } catch {
@@ -220,12 +233,26 @@ function readPath(value: unknown, path: Array<string | number>): unknown {
 
 function textFromRuns(value: unknown): string | null {
   const runs = (value as { runs?: Array<{ text?: string }> })?.runs;
-  const text = runs?.map((run) => run.text ?? "").join("").trim();
+  const text = runs
+    ?.map((run) => run.text ?? "")
+    .join("")
+    .trim();
   return text || null;
 }
 
 function extractYouTubeNextTitle(nextResponse: unknown): string | null {
-  return textFromRuns(readPath(nextResponse, ["contents", "twoColumnWatchNextResults", "results", "results", "contents", 0, "videoPrimaryInfoRenderer", "title"]));
+  return textFromRuns(
+    readPath(nextResponse, [
+      "contents",
+      "twoColumnWatchNextResults",
+      "results",
+      "results",
+      "contents",
+      0,
+      "videoPrimaryInfoRenderer",
+      "title",
+    ]),
+  );
 }
 
 function extractYouTubeNextDescription(nextResponse: unknown): string {
@@ -264,9 +291,13 @@ function extractYouTubeNextDescription(nextResponse: unknown): string {
 }
 
 function extractCaptionUrl(playerResponse: unknown): string | null {
-  const tracks = (playerResponse as {
-    captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ baseUrl?: string; languageCode?: string }> } };
-  })?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+  const tracks = (
+    playerResponse as {
+      captions?: {
+        playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ baseUrl?: string; languageCode?: string }> };
+      };
+    }
+  )?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
   return tracks?.find((track) => track.languageCode === "ja")?.baseUrl ?? tracks?.[0]?.baseUrl ?? null;
 }
 
@@ -359,7 +390,8 @@ async function fetchYouTubePlayerSource(url: string, videoId: string): Promise<S
 async function fetchYouTubeSource(url: string, html: string): Promise<SourceText> {
   const playerResponse = extractJsonObject(html, "ytInitialPlayerResponse") ?? {};
   const title = extractYouTubeTitle(playerResponse) ?? extractTitleFromHtml(html) ?? titleFromUrlFallback(url);
-  const description = extractYouTubeDescription(playerResponse) || extractJsonStringProperty(html, "shortDescription") || "";
+  const description =
+    extractYouTubeDescription(playerResponse) || extractJsonStringProperty(html, "shortDescription") || "";
   const captionUrl = extractCaptionUrl(playerResponse);
   let transcript = "";
 
@@ -437,7 +469,9 @@ export function extractRecipeJson(text: string): Pick<RecipeCandidate, "title" |
   };
 }
 
-function normalizeRecipeObject(value: unknown): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> | null {
+function normalizeRecipeObject(
+  value: unknown,
+): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> | null {
   if (!value || typeof value !== "object") return null;
   const parsed = value as Partial<RecipeCandidate>;
 
@@ -449,7 +483,9 @@ function normalizeRecipeObject(value: unknown): Pick<RecipeCandidate, "title" | 
   };
 }
 
-export function extractRecipeFromAiResponse(response: unknown): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> {
+export function extractRecipeFromAiResponse(
+  response: unknown,
+): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> {
   if (typeof response === "string") return extractRecipeJson(response);
   if (!response || typeof response !== "object") throw new Error("AIの応答からJSONを読み取れませんでした。");
 
@@ -458,12 +494,7 @@ export function extractRecipeFromAiResponse(response: unknown): Pick<RecipeCandi
     result?: unknown;
     choices?: Array<{ message?: { content?: unknown } }>;
   };
-  const candidates = [
-    result.response,
-    result.result,
-    result.choices?.[0]?.message?.content,
-    response,
-  ];
+  const candidates = [result.response, result.result, result.choices?.[0]?.message?.content, response];
 
   for (const candidate of candidates) {
     if (typeof candidate === "string") return extractRecipeJson(candidate);
@@ -515,10 +546,17 @@ URL: ${source.url}
 ${source.text}`;
 }
 
-async function runRecipeAi(env: Env, source: SourceText): Promise<Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes">> {
+async function runRecipeAi(
+  env: Env,
+  source: SourceText,
+): Promise<Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes">> {
   const input = {
     messages: [
-      { role: "system", content: "あなたはレシピ本文を、保存用の自然な日本語レシピ下書きに整えるアシスタントです。出力は必ず日本語のJSONだけにします。" },
+      {
+        role: "system",
+        content:
+          "あなたはレシピ本文を、保存用の自然な日本語レシピ下書きに整えるアシスタントです。出力は必ず日本語のJSONだけにします。",
+      },
       { role: "user", content: buildPrompt(source) },
     ],
     response_format: recipeResponseFormat,

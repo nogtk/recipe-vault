@@ -6,7 +6,14 @@ const statuses: RecipeStatus[] = ["want_to_make", "made"];
 const statusSet = new Set<RecipeStatus>(statuses);
 
 export function parseTags(value: string): string[] {
-  return [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 export function validateRecipeUrl(value: string): ParseResult<string> {
