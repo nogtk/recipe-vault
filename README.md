@@ -26,6 +26,18 @@ npm install
 npm run dev
 ```
 
+## 開発フロー
+
+作業は原則 `git wt` の worktree で行います。詳細は `AGENTS.md` を参照してください。
+
+```bash
+git fetch origin
+git wt codex/<task-slug> origin/main --nocd
+cd ../receipt-wt/codex/<task-slug>
+npm ci
+npm run check
+```
+
 ## DB作成
 
 ```bash
