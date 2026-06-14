@@ -10,7 +10,7 @@
 ```bash
 git fetch origin
 git wt codex/<task-slug> origin/main --nocd
-cd ../receipt-wt/codex/<task-slug>
+cd .worktrees/codex/<task-slug>
 npm ci
 npm run check
 ```
@@ -31,7 +31,8 @@ git wt -d codex/<task-slug>
 運用ルール:
 
 - ブランチ名は原則 `codex/<task-slug>` にします。
-- worktree の置き場は repo ローカル設定 `wt.basedir=../{gitroot}-wt` を使います。
+- worktree の置き場は repo ローカル設定 `wt.basedir=.worktrees` を使います。
+- `.worktrees/` は `.gitignore` に含め、ghq のリポジトリ探索を邪魔しない形で repo root 配下にまとめます。
 - `git wt` は `wt.nocd=true` にして、出力された path に明示的に `cd` します。
 - ユーザーの未コミット変更がある checkout では、勝手に stash、restore、merge、rebase しません。
 - ユーザーの未コミット変更を使う必要がある場合は、先に方針を説明してから扱います。
