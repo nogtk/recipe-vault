@@ -29,6 +29,7 @@ describe("parseYouTubeVideoId", () => {
   it("YouTube URLから動画IDを取り出す", () => {
     expect(parseYouTubeVideoId("https://www.youtube.com/watch?v=abcdefghijk")).toBe("abcdefghijk");
     expect(parseYouTubeVideoId("https://youtu.be/abcdefghijk")).toBe("abcdefghijk");
+    expect(parseYouTubeVideoId("https://youtube.com/shorts/NkJtp_nL4pY?si=WFop-K45_-RGiimx")).toBe("NkJtp_nL4pY");
     expect(parseYouTubeVideoId("https://example.com/watch?v=abcdefghijk")).toBeNull();
   });
 
@@ -121,6 +122,19 @@ describe("extractRecipeFromAiResponse", () => {
       steps: "揚げる",
       notes: "説明欄から抽出",
     });
+  });
+
+  it("動画由来のタイトル末尾の連番を取り除く", () => {
+    expect(
+      extractRecipeFromAiResponse({
+        response: {
+          title: "マルタイ油そば2",
+          ingredients: "マルタイラーメン",
+          steps: "混ぜる",
+          notes: "YouTube Shortsから抽出",
+        },
+      }).title,
+    ).toBe("マルタイ油そば");
   });
 });
 
@@ -259,6 +273,67 @@ describe("extractRecipeCandidate", () => {
     expect(requestBody.context.client.hl).toBe("ja");
     expect(requestBody.context.client.gl).toBe("JP");
     expect(ai.run).toHaveBeenCalled();
+  });
+
+  it("YouTube Shortsでも説明欄を使い、材料から料理名が分かるタイトルを作るようAIに指示する", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://www.youtube.com/youtubei/v1/next") {
+          return Response.json({
+            contents: {
+              twoColumnWatchNextResults: {
+                results: {
+                  results: {
+                    contents: [
+                      { videoPrimaryInfoRenderer: { title: { runs: [{ text: "これ一生使える保存版" }] } } },
+                      {
+                        videoSecondaryInfoRenderer: {
+                          attributedDescription: {
+                            content: "豆腐、卵、片栗粉、めんつゆを使います。豆腐を崩して焼き、卵あんをかけます。",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const ai = {
+      run: vi.fn(async () => ({
+        response: {
+          title: "豆腐の卵あんかけ",
+          ingredients: "豆腐\n卵\n片栗粉\nめんつゆ",
+          steps: "豆腐を崩して焼き、卵あんをかける",
+          notes: "YouTube Shortsの説明欄から抽出",
+        },
+      })),
+    };
+
+    const candidate = await extractRecipeCandidate(
+      {
+        AI: ai,
+        DB: {} as D1Database,
+        GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
+        ALLOWED_EMAIL: "",
+        SESSION_SECRET: "",
+      },
+      "https://youtube.com/shorts/NkJtp_nL4pY?si=WFop-K45_-RGiimx",
+    );
+    const aiInput = JSON.stringify((ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1]);
+
+    expect(candidate.title).toBe("豆腐の卵あんかけ");
+    expect(aiInput).toContain("料理名が一目で分かる");
+    expect(aiInput).toContain("候補タイトルだけでは料理名が分からない場合");
+    expect(aiInput).toContain("動画の連番");
+    expect(aiInput).toContain("商品名や付属調味料");
+    expect(aiInput).toContain("豆腐、卵、片栗粉");
   });
 
   it("YouTube説明欄に今回のレシピ欄があればAI入力をそこに絞る", async () => {

@@ -491,11 +491,18 @@ export function extractRecipeJson(text: string): Pick<RecipeCandidate, "title" |
 
   const parsed = JSON.parse(text.slice(start, end + 1)) as Partial<RecipeCandidate>;
   return {
-    title: String(parsed.title ?? "").trim(),
+    title: normalizeRecipeTitle(parsed.title),
     ingredients: String(parsed.ingredients ?? "").trim(),
     steps: String(parsed.steps ?? "").trim(),
     notes: String(parsed.notes ?? "").trim(),
   };
+}
+
+function normalizeRecipeTitle(value: unknown): string {
+  return String(value ?? "")
+    .replace(/[#＃][^\s　#＃]+/g, "")
+    .replace(/[0-9０-９]+$/g, "")
+    .trim();
 }
 
 function normalizeRecipeObject(
@@ -505,7 +512,7 @@ function normalizeRecipeObject(
   const parsed = value as Partial<RecipeCandidate>;
 
   return {
-    title: String(parsed.title ?? "").trim(),
+    title: normalizeRecipeTitle(parsed.title),
     ingredients: String(parsed.ingredients ?? "").trim(),
     steps: String(parsed.steps ?? "").trim(),
     notes: String(parsed.notes ?? "").trim(),
@@ -553,6 +560,9 @@ function buildPrompt(source: SourceText): string {
 JSONだけを返してください。形式は {"title":"","ingredients":"","steps":"","notes":""} です。
 JSONの値は必ずすべて自然な日本語で書いてください。本文が英語や機械翻訳の場合も、保存用の日本語レシピとして材料名、分量、手順を日本語に直してください。
 固有名詞以外の "onion", "egg", "tablespoon", "ground beef and pork" などの英語は残さず、「玉ねぎ」「卵」「大さじ」「牛豚合いびき肉」のように日本語へ翻訳してください。
+ingredientsには本文の材料欄にある項目をできるだけすべて入れてください。商品名や付属調味料、付属スープも材料として扱い、notesへ移さないでください。
+titleは保存後の一覧で料理名が一目で分かる名前にしてください。候補タイトルだけでは料理名が分からない場合は、本文の材料、調理内容、説明から料理名を推定して、「豆腐の卵あんかけ」「鶏むね肉の甘酢炒め」のような具体的な料理名にしてください。
+titleには動画の連番、ハッシュタグ、絵文字、「保存版」「これ一生使える」のような煽り文は入れず、料理名だけを自然に書いてください。
 
 URL: ${source.url}
 候補タイトル: ${source.title}
@@ -565,6 +575,9 @@ function buildRetryPrompt(source: SourceText): string {
 返答は必ず1つのJSONオブジェクトだけにしてください。説明文、Markdown、コードブロックは禁止です。
 すべて日本語で書いてください。英語の食材名や単位は日本語に翻訳してください。
 本文に手順がない場合、stepsは空文字にしてください。推測で手順を作らないでください。
+ingredientsには本文の材料欄にある項目をできるだけすべて入れ、商品名や付属調味料もnotesではなくingredientsに入れてください。
+titleは料理名が一目で分かる具体的な名前にしてください。候補タイトルだけでは料理名が分からない場合は、本文の材料と調理内容から料理名だけを推定してください。
+titleには動画の連番、ハッシュタグ、絵文字、煽り文を入れないでください。
 
 形式:
 {"title":"日本語タイトル","ingredients":"材料を改行区切り","steps":"手順を改行区切り","notes":"補足"}
