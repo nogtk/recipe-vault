@@ -3,6 +3,7 @@ import type { RecipeInput, RecipeStatus } from "../types";
 type ParseResult<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 
 const statuses: RecipeStatus[] = ["want_to_make", "made"];
+const statusSet = new Set<RecipeStatus>(statuses);
 
 export function parseTags(value: string): string[] {
   return [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))];
@@ -26,7 +27,7 @@ export function parseRecipeForm(form: FormData): ParseResult<RecipeInput> {
   const status = String(form.get("status") || "want_to_make") as RecipeStatus;
 
   if (!urlResult.ok) errors.push(...urlResult.errors);
-  if (!statuses.includes(status)) errors.push("ステータスの値が正しくありません。");
+  if (!statusSet.has(status)) errors.push("ステータスの値が正しくありません。");
 
   const title = String(form.get("title") ?? "").trim();
 
