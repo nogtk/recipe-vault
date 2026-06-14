@@ -45,6 +45,7 @@ export function recipeListView(recipes: Recipe[], filters: { query?: string; sta
 
 export function recipeFormView(options: { title: string; action: string; recipe?: Partial<RecipeInput> & { id?: string }; errors?: string[] }): string {
   const recipe = options.recipe ?? {};
+  const isNewRecipe = !options.recipe?.id;
   const extraActions = options.recipe?.id
     ? `<a class="button secondary" href="${escapeHtml(options.recipe.url ?? "")}" target="_blank" rel="noreferrer">元URLを開く</a>
        <button form="delete-form" type="submit">削除する</button>`
@@ -54,8 +55,9 @@ export function recipeFormView(options: { title: string; action: string; recipe?
     `
     <div class="topbar"><div><p class="eyebrow">Recipe Vault</p><h1>${escapeHtml(options.title)}</h1></div><a class="button secondary" href="/">一覧へ</a></div>
     ${options.errors?.length ? `<div class="error">${options.errors.map(escapeHtml).join("<br>")}</div>` : ""}
-    <form class="form" method="post" action="${escapeHtml(options.action)}">
-      <label>URL<input required name="url" value="${escapeHtml(recipe.url ?? "")}"></label>
+    <form class="form" method="post" action="${escapeHtml(options.action)}" ${isNewRecipe ? 'data-auto-extract-form="true"' : ""}>
+      ${isNewRecipe ? '<div class="form-loading" data-loading-label="AIで候補を作成中"><span class="spinner" aria-hidden="true"></span><span>AIで候補を作成中...</span></div>' : ""}
+      <label>URL<input required name="url" value="${escapeHtml(recipe.url ?? "")}" ${isNewRecipe ? 'data-auto-extract-url="true"' : ""}></label>
       <label>タイトル<input name="title" value="${escapeHtml(recipe.title ?? "")}"></label>
       <label>ステータス<select name="status">
         <option value="want_to_make" ${recipe.status !== "made" ? "selected" : ""}>作りたい</option>
@@ -67,11 +69,41 @@ export function recipeFormView(options: { title: string; action: string; recipe?
       <label>メモ<textarea name="notes">${escapeHtml(recipe.notes ?? "")}</textarea></label>
       <div class="actions">
         <button type="submit">保存する</button>
-        ${options.recipe?.id ? "" : `<button type="submit" formaction="/recipes/extract" formmethod="post">AIで候補作成</button>`}
+        ${isNewRecipe ? `<button type="submit" formaction="/recipes/extract" formmethod="post" data-auto-extract-button="true">AIで候補作成</button>` : ""}
         ${extraActions}
       </div>
     </form>
     ${options.recipe?.id ? `<form id="delete-form" method="post" action="/recipes/${escapeHtml(options.recipe.id)}/delete"></form>` : ""}
+    ${
+      isNewRecipe
+        ? `<script>
+(() => {
+  const form = document.querySelector("[data-auto-extract-form]");
+  const urlInput = form?.querySelector("[data-auto-extract-url]");
+  const extractButton = form?.querySelector("[data-auto-extract-button]");
+  if (!(form instanceof HTMLFormElement) || !(urlInput instanceof HTMLInputElement) || !(extractButton instanceof HTMLButtonElement)) return;
+
+  let lastSubmittedUrl = urlInput.value.trim();
+  const setLoading = () => {
+    form.classList.add("is-loading");
+    for (const control of form.elements) {
+      if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement || control instanceof HTMLSelectElement || control instanceof HTMLButtonElement) {
+        control.disabled = true;
+      }
+    }
+  };
+
+  form.addEventListener("submit", setLoading);
+  urlInput.addEventListener("blur", () => {
+    const nextUrl = urlInput.value.trim();
+    if (!nextUrl || nextUrl === lastSubmittedUrl || !urlInput.checkValidity()) return;
+    lastSubmittedUrl = nextUrl;
+    form.requestSubmit(extractButton);
+  });
+})();
+</script>`
+        : ""
+    }
   `,
   );
 }

@@ -132,6 +132,19 @@ describe("app", () => {
 });
 
 describe("recipeFormView", () => {
+  it("新規レシピではURL入力のフォーカスアウトでAI候補作成を自動実行する", () => {
+    const html = recipeFormView({
+      title: "新規レシピ",
+      action: "/recipes",
+    });
+
+    expect(html).toContain('data-auto-extract-form="true"');
+    expect(html).toContain('data-auto-extract-url="true"');
+    expect(html).toContain('data-loading-label="AIで候補を作成中"');
+    expect(html).toContain('addEventListener("blur"');
+    expect(html).toContain('form.requestSubmit(extractButton)');
+  });
+
   it("既存レシピでは元URLリンクと削除フォームを表示する", () => {
     const html = recipeFormView({
       title: "レシピ編集",

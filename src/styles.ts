@@ -123,6 +123,37 @@ a:hover { color: var(--primary); }
   display: grid;
   gap: 16px;
   padding: 22px;
+  position: relative;
+}
+.form.is-loading {
+  pointer-events: none;
+}
+.form.is-loading label, .form.is-loading .actions {
+  opacity: 0.42;
+}
+.form-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  place-items: center;
+  gap: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--primary-dark);
+  font-weight: 800;
+  backdrop-filter: blur(5px);
+}
+.form.is-loading .form-loading {
+  display: flex;
+}
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid rgba(47, 107, 79, 0.18);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 .recipe-list {
   display: grid;
@@ -268,6 +299,9 @@ textarea {
   padding: 12px 14px;
   margin-bottom: 14px;
   font-weight: 700;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 760px) {
