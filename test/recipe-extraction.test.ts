@@ -5,6 +5,7 @@ import {
   extractRecipeFromAiResponse,
   extractRecipeJson,
   extractRecipeStructuredData,
+  extractYouTubeRecipeDescription,
   parseYouTubeVideoId,
   transcriptXmlToText,
 } from "../src/lib/recipe-extraction";
@@ -37,6 +38,48 @@ describe("transcriptXmlToText", () => {
     const xml = `<transcript><text start="0">玉ねぎを切ります</text><text start="3">炒めます &amp; 煮ます</text></transcript>`;
 
     expect(transcriptXmlToText(xml)).toBe("玉ねぎを切ります\n炒めます & 煮ます");
+  });
+});
+
+describe("extractYouTubeRecipeDescription", () => {
+  it("説明欄のノイズを除いて今回のレシピ欄だけを取り出す", () => {
+    const description = `究極のアラビアータ
+https://youtu.be/7MsGcq4o_Uc
+
+00:00 オープニング
+00:43 材料紹介
+
+ポンのみ － お酒の電動ディスペンサー
+https://pon-nomi.com/
+
+★今回のレシピはこちら↓
+ーーーーーーーーーーーーーー
+【ニラのミートソース】（2人前）
+パスタ（1.8mm）...200g
+豚ひき肉...140g
+ニラ...1束（100g）
+
+ニラのミートソース（1人前）
+オリーブオイル大さじ1で塩コショウした豚挽き肉70g炒め、ニラ50g、中華味小さじ1、オイスターソース小さじ1、ゆで汁お玉一杯入れ、1.5mmのパスタ100g入れ混ぜ黒胡椒
+
+【豆もやしスープ】（2人前）
+豆もやし...1袋（200g）
+水...600cc
+
+豆もやしスープ （2人前）
+鍋に水600ccと豆もやし1袋（200g）を入れる
+ーーーーーーーーーーーーーー
+◆バズレシピアプリ
+https://bazurecipe-app.com`;
+
+    const text = extractYouTubeRecipeDescription(description);
+
+    expect(text).toContain("【ニラのミートソース】");
+    expect(text).toContain("豆もやしスープ");
+    expect(text).toContain("豚ひき肉...140g");
+    expect(text).not.toContain("究極のアラビアータ");
+    expect(text).not.toContain("ポンのみ");
+    expect(text).not.toContain("バズレシピアプリ");
   });
 });
 
@@ -210,6 +253,84 @@ describe("extractRecipeCandidate", () => {
     expect(requestBody.context.client.hl).toBe("ja");
     expect(requestBody.context.client.gl).toBe("JP");
     expect(ai.run).toHaveBeenCalled();
+  });
+
+  it("YouTube説明欄に今回のレシピ欄があればAI入力をそこに絞る", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://www.youtube.com/youtubei/v1/next") {
+          return Response.json({
+            contents: {
+              twoColumnWatchNextResults: {
+                results: {
+                  results: {
+                    contents: [
+                      { videoPrimaryInfoRenderer: { title: { runs: [{ text: "明日、スーパーからニラが消えます" }] } } },
+                      {
+                        videoSecondaryInfoRenderer: {
+                          attributedDescription: {
+                            content: `究極のアラビアータ
+https://youtu.be/7MsGcq4o_Uc
+
+ポンのみ － お酒の電動ディスペンサー
+https://pon-nomi.com/
+
+★今回のレシピはこちら↓
+ーーーーーーーーーーーーーー
+【ニラのミートソース】（2人前）
+パスタ（1.8mm）...200g
+豚ひき肉...140g
+ニラ...1束（100g）
+
+ニラのミートソース（1人前）
+オリーブオイル大さじ1で塩コショウした豚挽き肉70g炒め、ニラ50g、中華味小さじ1、オイスターソース小さじ1、ゆで汁お玉一杯入れ、1.5mmのパスタ100g入れ混ぜ黒胡椒
+ーーーーーーーーーーーーーー
+◆バズレシピアプリ
+https://bazurecipe-app.com`,
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const ai = {
+      run: vi.fn(async () => ({
+        response: {
+          title: "ニラのミートソース",
+          ingredients: "パスタ 200g\n豚ひき肉 140g\nニラ 1束",
+          steps: "豚ひき肉を炒め、ニラと調味料、ゆで汁を入れてパスタと混ぜる。",
+          notes: "YouTube説明欄から抽出",
+        },
+      })),
+    };
+
+    const candidate = await extractRecipeCandidate(
+      {
+        AI: ai,
+        DB: {} as D1Database,
+        GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
+        ALLOWED_EMAIL: "",
+        SESSION_SECRET: "",
+      },
+      "https://youtu.be/ot11vIvuuEA?si=hClykAjoF9kUWAGC",
+    );
+    const aiInput = JSON.stringify((ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1]);
+
+    expect(candidate.title).toBe("ニラのミートソース");
+    expect(aiInput).toContain("【ニラのミートソース】");
+    expect(aiInput).toContain("豚ひき肉...140g");
+    expect(aiInput).not.toContain("究極のアラビアータ");
+    expect(aiInput).not.toContain("ポンのみ");
+    expect(aiInput).not.toContain("バズレシピアプリ");
   });
 
   it("英語メタデータでも日本語で出力するようAIに指示する", async () => {
