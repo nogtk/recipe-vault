@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 concurrency:
   group: deploy-production
   cancel-in-progress: false
@@ -22,10 +25,10 @@ jobs:
 
     steps:
       - name: ソースを取得
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.3
 
       - name: Node.js を準備
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: "24"
           cache: npm
@@ -37,8 +40,9 @@ jobs:
         run: npm run check
 
       - name: Cloudflare Workers にデプロイ
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+          wranglerVersion: "4.100.0"
