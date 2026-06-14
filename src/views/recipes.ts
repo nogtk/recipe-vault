@@ -18,6 +18,7 @@ export function recipeListView(recipes: Recipe[], filters: { query?: string; sta
       ${recipe.steps ? `<p class="recipe-snippet"><strong>手順</strong><span>${escapeHtml(recipe.steps.slice(0, 160))}</span></p>` : ""}
       ${recipe.notes ? `<p class="notes">${escapeHtml(recipe.notes.slice(0, 120))}</p>` : ""}
       <div class="tags">${recipe.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
+      <div class="card-actions"><a class="source-link" href="${escapeHtml(recipe.url)}" target="_blank" rel="noreferrer">元サイトを開く</a></div>
     </article>
   `,
     )

@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { extractHtmlText, extractRecipeCandidate, extractRecipeFromAiResponse, extractRecipeJson, parseYouTubeVideoId, transcriptXmlToText } from "../src/lib/recipe-extraction";
+import {
+  extractHtmlText,
+  extractRecipeCandidate,
+  extractRecipeFromAiResponse,
+  extractRecipeJson,
+  extractRecipeStructuredData,
+  parseYouTubeVideoId,
+  transcriptXmlToText,
+} from "../src/lib/recipe-extraction";
 
 describe("extractHtmlText", () => {
   it("HTMLから本文らしいテキストを取り出す", () => {
@@ -65,7 +73,79 @@ describe("extractRecipeFromAiResponse", () => {
   });
 });
 
+describe("extractRecipeStructuredData", () => {
+  it("JSON-LDのRecipeから材料と手順を取り出す", () => {
+    const html = `
+      <script type="application/ld+json">
+        {
+          "@context": "http://schema.org",
+          "@type": "Recipe",
+          "name": "鶏肉のたっぷりしそ南蛮",
+          "description": "鶏もも肉を野菜と一緒に南蛮漬けにします。",
+          "recipeYield": "2人分",
+          "recipeIngredient": ["鶏もも肉 1枚", "玉ねぎ 1/2個", "大葉 10枚"],
+          "recipeInstructions": [
+            {"@type": "HowToStep", "text": "玉ねぎは薄切りにする。"},
+            {"@type": "HowToStep", "text": "鶏肉に片栗粉をまぶして焼く。"}
+          ]
+        }
+      </script>
+    `;
+
+    expect(extractRecipeStructuredData(html)).toEqual({
+      title: "鶏肉のたっぷりしそ南蛮",
+      ingredients: "鶏もも肉 1枚\n玉ねぎ 1/2個\n大葉 10枚",
+      steps: "玉ねぎは薄切りにする。\n鶏肉に片栗粉をまぶして焼く。",
+      notes: "鶏もも肉を野菜と一緒に南蛮漬けにします。\n分量: 2人分",
+    });
+  });
+});
+
 describe("extractRecipeCandidate", () => {
+  it("Delish KitchenのJSON-LDからAIレシピ候補を作る", async () => {
+    const html = `
+      <html><head><title>DELISH KITCHEN</title></head><body>
+      <script type="application/ld+json">
+        {
+          "@context": "http://schema.org",
+          "@type": "Recipe",
+          "name": "鶏肉のたっぷりしそ南蛮",
+          "recipeIngredient": ["鶏もも肉 1枚", "大葉 10枚"],
+          "recipeInstructions": [{"@type": "HowToStep", "text": "鶏肉を焼いて甘酢に漬ける。"}]
+        }
+      </script>
+      </body></html>
+    `;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(html)));
+    const ai = {
+      run: vi.fn(async () => ({
+        response: {
+          title: "鶏肉のたっぷりしそ南蛮",
+          ingredients: "鶏もも肉 1枚\n大葉 10枚",
+          steps: "鶏肉を焼いて甘酢に漬ける。",
+          notes: "JSON-LDから抽出",
+        },
+      })),
+    };
+
+    const candidate = await extractRecipeCandidate(
+      {
+        AI: ai,
+        DB: {} as D1Database,
+        GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
+        ALLOWED_EMAIL: "",
+        SESSION_SECRET: "",
+      },
+      "https://delishkitchen.tv/recipes/251841814468755862",
+    );
+
+    expect(candidate.title).toBe("鶏肉のたっぷりしそ南蛮");
+    expect(candidate.ingredients).toContain("鶏もも肉");
+    expect(candidate.steps).toContain("甘酢");
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
   it("YouTube next APIの説明欄から候補を作る", async () => {
     vi.stubGlobal(
       "fetch",

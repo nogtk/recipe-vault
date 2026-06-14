@@ -177,5 +177,8 @@ describe("recipeListView", () => {
     expect(html).toContain("鶏モモ肉");
     expect(html).toContain("手順");
     expect(html).toContain("中温で揚げる");
+    expect(html).toContain("元サイトを開く");
+    expect(html).toContain('href="https://example.com/r"');
+    expect(html).toContain('target="_blank"');
   });
 });

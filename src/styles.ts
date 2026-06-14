@@ -233,6 +233,26 @@ textarea {
   font-size: 13px;
   font-weight: 700;
 }
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.source-link {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--primary-dark);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 7px 11px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.source-link:hover {
+  border-color: rgba(47, 107, 79, 0.38);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
 .actions {
   display: flex;
   gap: 10px;
@@ -256,6 +276,8 @@ textarea {
   .topbar { gap: 14px; }
   .filters, .form { padding: 14px; }
   .button, button { width: 100%; text-align: center; }
+  .card-actions { justify-content: stretch; }
+  .source-link { width: 100%; text-align: center; }
   .actions { display: grid; }
 }
 `;

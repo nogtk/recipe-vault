@@ -3,9 +3,11 @@ import type { Env, RecipeInput } from "../types";
 
 const defaultAiModel = "@cf/meta/llama-3.1-8b-instruct-fast";
 const maxSourceChars = 24_000;
+const maxPageHtmlChars = 200_000;
 const maxYouTubeHtmlChars = 2_000_000;
 
 type SourceText = {
+  recipe?: Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes">;
   title: string;
   url: string;
   text: string;
@@ -65,6 +67,73 @@ export function parseYouTubeVideoId(url: string): string | null {
 
 export function transcriptXmlToText(xml: string): string {
   return [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((match) => normalizeText(match[1])).filter(Boolean).join("\n");
+}
+
+function arrayFromValue(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : value ? [value] : [];
+}
+
+function hasRecipeType(value: unknown): boolean {
+  const type = (value as { "@type"?: unknown })?.["@type"];
+  return Array.isArray(type) ? type.includes("Recipe") : type === "Recipe";
+}
+
+function collectJsonLdObjects(value: unknown): unknown[] {
+  if (!value || typeof value !== "object") return [];
+  const values = Array.isArray(value) ? value : Object.values(value);
+  return [value, ...values.flatMap(collectJsonLdObjects)];
+}
+
+function textFromInstruction(value: unknown): string[] {
+  if (typeof value === "string") return [normalizeText(value)].filter(Boolean);
+  if (!value || typeof value !== "object") return [];
+
+  const item = value as {
+    itemListElement?: unknown;
+    name?: unknown;
+    text?: unknown;
+  };
+  const ownText = [item.name, item.text]
+    .filter((text): text is string => typeof text === "string")
+    .map(normalizeText)
+    .filter(Boolean);
+  return [...ownText, ...arrayFromValue(item.itemListElement).flatMap(textFromInstruction)];
+}
+
+export function extractRecipeStructuredData(html: string): Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes"> | null {
+  const scripts = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const script of scripts) {
+    try {
+      const parsed = JSON.parse(decodeBasicEntities(script[1]));
+      const recipe = collectJsonLdObjects(parsed).find(hasRecipeType) as
+        | {
+            description?: string;
+            name?: string;
+            recipeIngredient?: unknown;
+            recipeInstructions?: unknown;
+            recipeYield?: unknown;
+          }
+        | undefined;
+      if (!recipe) continue;
+
+      const ingredients = arrayFromValue(recipe.recipeIngredient).map((value) => normalizeText(String(value))).filter(Boolean);
+      const steps = arrayFromValue(recipe.recipeInstructions).flatMap(textFromInstruction).filter(Boolean);
+      const notes = [recipe.description, recipe.recipeYield ? `分量: ${String(recipe.recipeYield)}` : ""].map((value) => normalizeText(value ?? "")).filter(Boolean);
+
+      if (ingredients.length || steps.length) {
+        return {
+          title: normalizeText(recipe.name ?? ""),
+          ingredients: ingredients.join("\n"),
+          steps: steps.join("\n"),
+          notes: notes.join("\n"),
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 function extractJsonObject(source: string, marker: string): unknown | null {
@@ -323,8 +392,25 @@ async function fetchSourceText(url: string): Promise<SourceText> {
   });
   if (!response.ok) throw new Error("URLの内容を取得できませんでした。");
 
-  const html = await limitedText(response, videoId ? maxYouTubeHtmlChars : maxSourceChars);
+  const html = await limitedText(response, videoId ? maxYouTubeHtmlChars : maxPageHtmlChars);
   if (videoId) return fetchYouTubeSource(url, html);
+
+  const structuredRecipe = extractRecipeStructuredData(html);
+  if (structuredRecipe) {
+    return {
+      recipe: structuredRecipe,
+      title: structuredRecipe.title || extractTitleFromHtml(html) || titleFromUrlFallback(url),
+      url,
+      text: [
+        structuredRecipe.ingredients ? `材料:\n${structuredRecipe.ingredients}` : "",
+        structuredRecipe.steps ? `手順:\n${structuredRecipe.steps}` : "",
+        structuredRecipe.notes ? `メモ:\n${structuredRecipe.notes}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+        .slice(0, maxSourceChars),
+    };
+  }
 
   return {
     title: extractTitleFromHtml(html) ?? titleFromUrlFallback(url),
@@ -414,6 +500,15 @@ export async function extractRecipeCandidate(env: Env, url: string): Promise<Rec
   const source = await fetchSourceText(url);
   if (source.text.length < 20) {
     throw new Error("レシピ化できる本文や字幕が見つかりませんでした。");
+  }
+  if (source.recipe?.ingredients || source.recipe?.steps) {
+    return {
+      url,
+      title: source.recipe.title || source.title,
+      ingredients: source.recipe.ingredients,
+      steps: source.recipe.steps,
+      notes: source.recipe.notes,
+    };
   }
 
   const response = await env.AI.run(env.AI_MODEL || defaultAiModel, {
