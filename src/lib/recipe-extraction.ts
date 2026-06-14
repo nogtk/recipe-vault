@@ -76,6 +76,32 @@ export function transcriptXmlToText(xml: string): string {
     .join("\n");
 }
 
+function isSeparatorLine(line: string): boolean {
+  return /^[\sー－—-]{6,}$/.test(line.trim());
+}
+
+function isAfterRecipeNoiseLine(line: string): boolean {
+  return /^[◆■●○〇▼※#]/.test(line) || line.startsWith("◾");
+}
+
+export function extractYouTubeRecipeDescription(description: string): string {
+  const lines = description.replaceAll("\r\n", "\n").split("\n");
+  const markerIndex = lines.findIndex((line) => /今回のレシピ|レシピはこちら/.test(line));
+  if (markerIndex === -1) return description;
+
+  const recipeLines: string[] = [];
+  for (const line of lines.slice(markerIndex + 1)) {
+    const trimmed = line.trim();
+    if (!recipeLines.length && (!trimmed || isSeparatorLine(trimmed))) continue;
+    if (recipeLines.length && isSeparatorLine(trimmed)) break;
+    if (recipeLines.length && isAfterRecipeNoiseLine(trimmed)) break;
+    recipeLines.push(line);
+  }
+
+  const recipeText = recipeLines.join("\n").trim();
+  return recipeText || description;
+}
+
 function arrayFromValue(value: unknown): unknown[] {
   return Array.isArray(value) ? value : value ? [value] : [];
 }
@@ -326,7 +352,7 @@ async function fetchYouTubeNextSource(url: string, videoId: string): Promise<Sou
 
     const nextResponse = await response.json();
     const title = extractYouTubeNextTitle(nextResponse) ?? titleFromUrlFallback(url);
-    const text = extractYouTubeNextDescription(nextResponse).slice(0, maxSourceChars);
+    const text = extractYouTubeRecipeDescription(extractYouTubeNextDescription(nextResponse)).slice(0, maxSourceChars);
     if (!text) return null;
 
     return { title, url, text };
@@ -362,7 +388,7 @@ async function fetchYouTubePlayerSource(url: string, videoId: string): Promise<S
 
       const playerResponse = await response.json();
       const title = extractYouTubeTitle(playerResponse) ?? titleFromUrlFallback(url);
-      const description = extractYouTubeDescription(playerResponse);
+      const description = extractYouTubeRecipeDescription(extractYouTubeDescription(playerResponse));
       const captionUrl = extractCaptionUrl(playerResponse);
       let transcript = "";
 
@@ -390,8 +416,9 @@ async function fetchYouTubePlayerSource(url: string, videoId: string): Promise<S
 async function fetchYouTubeSource(url: string, html: string): Promise<SourceText> {
   const playerResponse = extractJsonObject(html, "ytInitialPlayerResponse") ?? {};
   const title = extractYouTubeTitle(playerResponse) ?? extractTitleFromHtml(html) ?? titleFromUrlFallback(url);
-  const description =
-    extractYouTubeDescription(playerResponse) || extractJsonStringProperty(html, "shortDescription") || "";
+  const description = extractYouTubeRecipeDescription(
+    extractYouTubeDescription(playerResponse) || extractJsonStringProperty(html, "shortDescription") || "",
+  );
   const captionUrl = extractCaptionUrl(playerResponse);
   let transcript = "";
 
