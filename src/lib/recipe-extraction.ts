@@ -587,6 +587,7 @@ async function runRecipeAi(
       { role: "user", content: buildPrompt(source) },
     ],
     response_format: recipeResponseFormat,
+    max_tokens: 1024,
   };
 
   try {
@@ -598,6 +599,7 @@ async function runRecipeAi(
         { role: "user", content: buildRetryPrompt(source) },
       ],
       response_format: recipeResponseFormat,
+      max_tokens: 1024,
     };
     return extractRecipeFromAiResponse(await env.AI.run(env.AI_MODEL || defaultAiModel, retryInput));
   }

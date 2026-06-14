@@ -323,9 +323,13 @@ https://bazurecipe-app.com`,
       },
       "https://youtu.be/ot11vIvuuEA?si=hClykAjoF9kUWAGC",
     );
-    const aiInput = JSON.stringify((ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1]);
+    const aiCallInput = (ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+      max_tokens?: number;
+    };
+    const aiInput = JSON.stringify(aiCallInput);
 
     expect(candidate.title).toBe("ニラのミートソース");
+    expect(aiCallInput.max_tokens).toBe(1024);
     expect(aiInput).toContain("【ニラのミートソース】");
     expect(aiInput).toContain("豚ひき肉...140g");
     expect(aiInput).not.toContain("究極のアラビアータ");
@@ -384,10 +388,14 @@ https://bazurecipe-app.com`,
       },
       "https://youtu.be/xGKn7TD9jaM?si=LZ_RMaNhGK5xzcE7",
     );
-    const aiInput = JSON.stringify((ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1]);
+    const aiCallInput = (ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as {
+      max_tokens?: number;
+    };
+    const aiInput = JSON.stringify(aiCallInput);
 
     expect(candidate.title).toBe("至高の唐揚げ");
     expect(candidate.ingredients).toContain("鶏モモ肉");
+    expect(aiCallInput.max_tokens).toBe(1024);
     expect(aiInput).toContain("必ずすべて自然な日本語");
     expect(aiInput).toContain("onion");
     expect(ai.run).toHaveBeenCalled();
@@ -451,6 +459,11 @@ https://bazurecipe-app.com`,
     expect(candidate.title).toBe("至高のハンバーグ");
     expect(candidate.ingredients).toContain("玉ねぎ");
     expect(ai.run).toHaveBeenCalledTimes(2);
+    const aiCalls = (ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const firstAiInput = aiCalls[0]?.[1] as { max_tokens?: number } | undefined;
+    const secondAiInput = aiCalls[1]?.[1] as { max_tokens?: number } | undefined;
+    expect(firstAiInput?.max_tokens).toBe(1024);
+    expect(secondAiInput?.max_tokens).toBe(1024);
   });
 
   it("YouTubeプレイヤー情報APIの最初の応答が空なら別クライアントで再試行する", async () => {
