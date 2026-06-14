@@ -166,7 +166,7 @@ textarea {
   background: var(--surface-strong);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 18px;
+  padding: 16px;
   box-shadow: var(--shadow-soft);
   transition:
     border-color 0.16s ease,
@@ -178,10 +178,16 @@ textarea {
   box-shadow: var(--shadow);
   transform: translateY(-1px);
 }
+.recipe-card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
 .recipe-card h2 {
-  font-size: 20px;
+  font-size: 19px;
   line-height: 1.35;
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   letter-spacing: 0;
 }
 .recipe-card h2 a { text-decoration: none; }
@@ -191,7 +197,7 @@ textarea {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  margin-bottom: 0;
 }
 .meta span {
   border: 1px solid var(--line);
@@ -199,30 +205,52 @@ textarea {
   padding: 4px 9px;
   background: #f6fbf5;
 }
-.recipe-snippet {
+.ingredient-preview {
   display: grid;
-  gap: 5px;
-  margin: 12px 0 0;
+  gap: 8px;
+  margin: 14px 0 0;
   color: #384038;
-  line-height: 1.68;
 }
-.recipe-snippet strong {
+.ingredient-preview strong {
   color: var(--primary-dark);
   font-size: 13px;
 }
-.recipe-snippet span, .notes {
+.ingredient-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ingredient-list span {
+  border: 1px solid rgba(47, 107, 79, 0.13);
+  border-radius: 999px;
+  background: #f8fbf6;
+  color: #384038;
+  font-size: 13px;
+  line-height: 1.35;
+  padding: 5px 8px;
+}
+.ingredient-list .ingredient-more {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+.notes {
   white-space: pre-wrap;
 }
 .notes {
   color: var(--muted);
-  line-height: 1.65;
-  margin: 12px 0 0;
+  line-height: 1.55;
+  margin: 10px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .tags {
   display: flex;
   gap: 7px;
   flex-wrap: wrap;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 .tag {
   background: var(--primary-soft);
@@ -233,20 +261,17 @@ textarea {
   font-size: 13px;
   font-weight: 700;
 }
-.card-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
 .source-link {
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   color: var(--primary-dark);
   background: rgba(255, 255, 255, 0.72);
-  padding: 7px 11px;
+  padding: 7px 10px;
   font-size: 13px;
   font-weight: 800;
   text-decoration: none;
+  white-space: nowrap;
+  align-self: start;
 }
 .source-link:hover {
   border-color: rgba(47, 107, 79, 0.38);
@@ -276,8 +301,8 @@ textarea {
   .topbar { gap: 14px; }
   .filters, .form { padding: 14px; }
   .button, button { width: 100%; text-align: center; }
-  .card-actions { justify-content: stretch; }
-  .source-link { width: 100%; text-align: center; }
+  .recipe-card { padding: 15px; }
+  .source-link { width: fit-content; }
   .actions { display: grid; }
 }
 `;

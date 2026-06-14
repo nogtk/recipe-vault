@@ -7,18 +7,44 @@ const statusLabels: Record<RecipeStatus, string> = {
   made: "作った",
 };
 
+function ingredientItemsFromText(text: string): string[] {
+  return text
+    .split(/\r?\n|[、，,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function ingredientsPreview(text: string): string {
+  const items = ingredientItemsFromText(text);
+  if (!items.length) return "";
+
+  const visibleItems = items.slice(0, 12);
+  const remainingCount = items.length - visibleItems.length;
+  return `
+      <div class="ingredient-preview">
+        <strong>材料</strong>
+        <div class="ingredient-list">
+          ${visibleItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+          ${remainingCount > 0 ? `<span class="ingredient-more">ほか${remainingCount}件</span>` : ""}
+        </div>
+      </div>`;
+}
+
 export function recipeListView(recipes: Recipe[], filters: { query?: string; status?: string; tag?: string }): string {
   const cards = recipes
     .map(
       (recipe) => `
     <article class="recipe-card">
-      <h2><a href="/recipes/${escapeHtml(recipe.id)}">${escapeHtml(recipe.title)}</a></h2>
-      <div class="meta"><span>${statusLabels[recipe.status]}</span><span>${escapeHtml(hostFromUrl(recipe.url))}</span></div>
-      ${recipe.ingredients ? `<p class="recipe-snippet"><strong>材料</strong><span>${escapeHtml(recipe.ingredients.slice(0, 120))}</span></p>` : ""}
-      ${recipe.steps ? `<p class="recipe-snippet"><strong>手順</strong><span>${escapeHtml(recipe.steps.slice(0, 160))}</span></p>` : ""}
+      <header class="recipe-card-header">
+        <div>
+          <h2><a href="/recipes/${escapeHtml(recipe.id)}">${escapeHtml(recipe.title)}</a></h2>
+          <div class="meta"><span>${statusLabels[recipe.status]}</span><span>${escapeHtml(hostFromUrl(recipe.url))}</span></div>
+        </div>
+        <a class="source-link" href="${escapeHtml(recipe.url)}" target="_blank" rel="noreferrer">元サイト</a>
+      </header>
+      ${recipe.ingredients ? ingredientsPreview(recipe.ingredients) : ""}
       ${recipe.notes ? `<p class="notes">${escapeHtml(recipe.notes.slice(0, 120))}</p>` : ""}
       <div class="tags">${recipe.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
-      <div class="card-actions"><a class="source-link" href="${escapeHtml(recipe.url)}" target="_blank" rel="noreferrer">元サイトを開く</a></div>
     </article>
   `,
     )

@@ -176,7 +176,7 @@ describe("recipeFormView", () => {
 });
 
 describe("recipeListView", () => {
-  it("一覧カードに材料と手順の抜粋を表示する", () => {
+  it("一覧カードには材料を広めに表示し、手順は表示しない", () => {
     const html = recipeListView(
       [
         {
@@ -185,7 +185,7 @@ describe("recipeListView", () => {
           title: "唐揚げ",
           status: "want_to_make",
           tags: ["揚げ物"],
-          ingredients: "鶏モモ肉\n醤油\nみりん",
+          ingredients: "鶏モモ肉 300g\n醤油 大さじ2\nみりん 大さじ1\n酒 大さじ1\nにんにく 1かけ\n片栗粉 適量",
           steps: "下味をつけて片栗粉をまぶし、中温で揚げる",
           notes: "",
           createdAt: "2026-06-14T00:00:00.000Z",
@@ -197,9 +197,10 @@ describe("recipeListView", () => {
 
     expect(html).toContain("材料");
     expect(html).toContain("鶏モモ肉");
-    expect(html).toContain("手順");
-    expect(html).toContain("中温で揚げる");
-    expect(html).toContain("元サイトを開く");
+    expect(html).toContain("片栗粉 適量");
+    expect(html).not.toContain("手順");
+    expect(html).not.toContain("中温で揚げる");
+    expect(html).toContain("元サイト");
     expect(html).toContain('href="https://example.com/r"');
     expect(html).toContain('target="_blank"');
   });
