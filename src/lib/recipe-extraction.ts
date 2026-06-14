@@ -285,6 +285,8 @@ async function fetchYouTubeNextSource(url: string, videoId: string): Promise<Sou
           client: {
             clientName: "WEB",
             clientVersion: "2.20240601.00.00",
+            gl: "JP",
+            hl: "ja",
           },
         },
       }),
@@ -304,9 +306,9 @@ async function fetchYouTubeNextSource(url: string, videoId: string): Promise<Sou
 
 async function fetchYouTubePlayerSource(url: string, videoId: string): Promise<SourceText | null> {
   const clients = [
-    { clientName: "WEB", clientVersion: "2.20240601.00.00" },
-    { clientName: "MWEB", clientVersion: "2.20240601.00.00" },
-    { clientName: "ANDROID", clientVersion: "19.09.37", androidSdkVersion: 30 },
+    { clientName: "WEB", clientVersion: "2.20240601.00.00", gl: "JP", hl: "ja" },
+    { clientName: "MWEB", clientVersion: "2.20240601.00.00", gl: "JP", hl: "ja" },
+    { clientName: "ANDROID", clientVersion: "19.09.37", androidSdkVersion: 30, gl: "JP", hl: "ja" },
   ];
 
   for (const client of clients) {
@@ -489,11 +491,51 @@ const recipeResponseFormat = {
 function buildPrompt(source: SourceText): string {
   return `次のテキストからレシピを抽出してください。本文にない材料、分量、手順は推測で補わないでください。
 JSONだけを返してください。形式は {"title":"","ingredients":"","steps":"","notes":""} です。
+JSONの値は必ずすべて自然な日本語で書いてください。本文が英語や機械翻訳の場合も、保存用の日本語レシピとして材料名、分量、手順を日本語に直してください。
+固有名詞以外の "onion", "egg", "tablespoon", "ground beef and pork" などの英語は残さず、「玉ねぎ」「卵」「大さじ」「牛豚合いびき肉」のように日本語へ翻訳してください。
 
 URL: ${source.url}
 候補タイトル: ${source.title}
 本文:
 ${source.text}`;
+}
+
+function buildRetryPrompt(source: SourceText): string {
+  return `以下の本文を保存用の日本語レシピに整えて、JSONだけを返してください。
+返答は必ず1つのJSONオブジェクトだけにしてください。説明文、Markdown、コードブロックは禁止です。
+すべて日本語で書いてください。英語の食材名や単位は日本語に翻訳してください。
+本文に手順がない場合、stepsは空文字にしてください。推測で手順を作らないでください。
+
+形式:
+{"title":"日本語タイトル","ingredients":"材料を改行区切り","steps":"手順を改行区切り","notes":"補足"}
+
+URL: ${source.url}
+候補タイトル: ${source.title}
+本文:
+${source.text}`;
+}
+
+async function runRecipeAi(env: Env, source: SourceText): Promise<Pick<RecipeCandidate, "title" | "ingredients" | "steps" | "notes">> {
+  const input = {
+    messages: [
+      { role: "system", content: "あなたはレシピ本文を、保存用の自然な日本語レシピ下書きに整えるアシスタントです。出力は必ず日本語のJSONだけにします。" },
+      { role: "user", content: buildPrompt(source) },
+    ],
+    response_format: recipeResponseFormat,
+  };
+
+  try {
+    return extractRecipeFromAiResponse(await env.AI.run(env.AI_MODEL || defaultAiModel, input));
+  } catch {
+    const retryInput = {
+      messages: [
+        { role: "system", content: "JSONだけを返してください。値はすべて自然な日本語にしてください。" },
+        { role: "user", content: buildRetryPrompt(source) },
+      ],
+      response_format: recipeResponseFormat,
+    };
+    return extractRecipeFromAiResponse(await env.AI.run(env.AI_MODEL || defaultAiModel, retryInput));
+  }
 }
 
 export async function extractRecipeCandidate(env: Env, url: string): Promise<RecipeCandidate> {
@@ -511,14 +553,7 @@ export async function extractRecipeCandidate(env: Env, url: string): Promise<Rec
     };
   }
 
-  const response = await env.AI.run(env.AI_MODEL || defaultAiModel, {
-    messages: [
-      { role: "system", content: "あなたはレシピ本文を、保存用の日本語レシピ下書きに整えるアシスタントです。" },
-      { role: "user", content: buildPrompt(source) },
-    ],
-    response_format: recipeResponseFormat,
-  });
-  const recipe = extractRecipeFromAiResponse(response);
+  const recipe = await runRecipeAi(env, source);
 
   return {
     url,

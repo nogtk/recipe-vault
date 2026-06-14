@@ -147,6 +147,65 @@ describe("extractRecipeCandidate", () => {
   });
 
   it("YouTube next APIの説明欄から候補を作る", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "https://www.youtube.com/youtubei/v1/next") {
+        return Response.json({
+          contents: {
+            twoColumnWatchNextResults: {
+              results: {
+                results: {
+                  contents: [
+                    { videoPrimaryInfoRenderer: { title: { runs: [{ text: "至高の唐揚げ" }] } } },
+                    {
+                      videoSecondaryInfoRenderer: {
+                        attributedDescription: {
+                          content: "鶏モモ肉、醤油、みりん、酒を使います。片栗粉をつけて揚げます。",
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const ai = {
+      run: vi.fn(async () => ({
+        response: {
+          title: "至高の唐揚げ",
+          ingredients: "鶏モモ肉\n醤油\nみりん\n酒\n片栗粉",
+          steps: "下味をつけて片栗粉をつけて揚げる",
+          notes: "YouTube説明欄から抽出",
+        },
+      })),
+    };
+
+    const candidate = await extractRecipeCandidate(
+      {
+        AI: ai,
+        DB: {} as D1Database,
+        GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
+        ALLOWED_EMAIL: "",
+        SESSION_SECRET: "",
+      },
+      "https://youtu.be/xGKn7TD9jaM?si=LZ_RMaNhGK5xzcE7",
+    );
+    const nextRequestInit = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1] as RequestInit | undefined;
+    const requestBody = JSON.parse(String(nextRequestInit?.body));
+
+    expect(candidate.title).toBe("至高の唐揚げ");
+    expect(candidate.ingredients).toContain("鶏モモ肉");
+    expect(requestBody.context.client.hl).toBe("ja");
+    expect(requestBody.context.client.gl).toBe("JP");
+    expect(ai.run).toHaveBeenCalled();
+  });
+
+  it("英語メタデータでも日本語で出力するようAIに指示する", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
@@ -197,10 +256,73 @@ describe("extractRecipeCandidate", () => {
       },
       "https://youtu.be/xGKn7TD9jaM?si=LZ_RMaNhGK5xzcE7",
     );
+    const aiInput = JSON.stringify((ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[1]);
 
     expect(candidate.title).toBe("至高の唐揚げ");
     expect(candidate.ingredients).toContain("鶏モモ肉");
+    expect(aiInput).toContain("必ずすべて自然な日本語");
+    expect(aiInput).toContain("onion");
     expect(ai.run).toHaveBeenCalled();
+  });
+
+  it("AIの1回目の応答がJSONでなければ日本語JSONで再試行する", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://www.youtube.com/youtubei/v1/next") {
+          return Response.json({
+            contents: {
+              twoColumnWatchNextResults: {
+                results: {
+                  results: {
+                    contents: [
+                      { videoPrimaryInfoRenderer: { title: { runs: [{ text: "至高のハンバーグ" }] } } },
+                      {
+                        videoSecondaryInfoRenderer: {
+                          attributedDescription: {
+                            content: "牛豚合挽き肉 300g、玉ねぎ 1/2玉、卵 1個を使います。",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const ai = {
+      run: vi
+        .fn()
+        .mockResolvedValueOnce({ response: "Hamburger steak with onion and egg" })
+        .mockResolvedValueOnce({
+          response: {
+            title: "至高のハンバーグ",
+            ingredients: "牛豚合いびき肉 300g\n玉ねぎ 1/2玉\n卵 1個",
+            steps: "",
+            notes: "YouTube説明欄から抽出",
+          },
+        }),
+    };
+
+    const candidate = await extractRecipeCandidate(
+      {
+        AI: ai,
+        DB: {} as D1Database,
+        GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
+        ALLOWED_EMAIL: "",
+        SESSION_SECRET: "",
+      },
+      "https://youtu.be/qgL4wLgADUI?si=6HTrDsiXBfMj1lQ4",
+    );
+
+    expect(candidate.title).toBe("至高のハンバーグ");
+    expect(candidate.ingredients).toContain("玉ねぎ");
+    expect(ai.run).toHaveBeenCalledTimes(2);
   });
 
   it("YouTubeプレイヤー情報APIの最初の応答が空なら別クライアントで再試行する", async () => {
