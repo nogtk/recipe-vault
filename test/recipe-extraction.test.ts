@@ -31,6 +31,12 @@ describe("parseYouTubeVideoId", () => {
     expect(parseYouTubeVideoId("https://youtu.be/abcdefghijk")).toBe("abcdefghijk");
     expect(parseYouTubeVideoId("https://example.com/watch?v=abcdefghijk")).toBeNull();
   });
+
+  it("YouTube Shorts/live/embed URLから動画IDを取り出す", () => {
+    expect(parseYouTubeVideoId("https://www.youtube.com/shorts/abcdefghijk?feature=share")).toBe("abcdefghijk");
+    expect(parseYouTubeVideoId("https://www.youtube.com/live/abcdefghijk?si=share-id")).toBe("abcdefghijk");
+    expect(parseYouTubeVideoId("https://www.youtube.com/embed/abcdefghijk")).toBe("abcdefghijk");
+  });
 });
 
 describe("transcriptXmlToText", () => {
@@ -464,6 +470,43 @@ https://bazurecipe-app.com`,
     const secondAiInput = aiCalls[1]?.[1] as { max_tokens?: number } | undefined;
     expect(firstAiInput?.max_tokens).toBe(1024);
     expect(secondAiInput?.max_tokens).toBe(1024);
+  });
+
+  it("AIが材料も手順も返せない場合は空の候補をフォームへ進めない", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            "<html><head><title>イベント告知</title></head><body><p>週末の料理イベントの告知です。会場やチケット情報を紹介していますが、具体的な材料や手順はありません。</p></body></html>",
+            { headers: { "content-type": "text/html" } },
+          ),
+      ),
+    );
+    const ai = {
+      run: vi.fn(async () => ({
+        response: {
+          title: "イベント告知",
+          ingredients: "",
+          steps: "",
+          notes: "レシピとして抽出できる材料や手順はありません。",
+        },
+      })),
+    };
+
+    await expect(
+      extractRecipeCandidate(
+        {
+          AI: ai,
+          DB: {} as D1Database,
+          GOOGLE_CLIENT_ID: "",
+          GOOGLE_CLIENT_SECRET: "",
+          ALLOWED_EMAIL: "",
+          SESSION_SECRET: "",
+        },
+        "https://example.com/event",
+      ),
+    ).rejects.toThrow("レシピ化できる材料や手順が見つかりませんでした。");
   });
 
   it("YouTubeプレイヤー情報APIの最初の応答が空なら別クライアントで再試行する", async () => {

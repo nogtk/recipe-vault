@@ -63,6 +63,12 @@ npm run format
 
 LintはOxlint、FormatはOxfmtを使います。CIでは `npm run check` で型チェック、lint、テストを実行します。
 
+AIレシピ抽出の実リンク疎通は、URLをカンマ区切りで渡した時だけ実行します。外部サイトの変更やネットワークに依存するため、通常の `npm run check` には含めません。
+
+```bash
+LIVE_RECIPE_URLS="https://youtu.be/...,https://example.com/recipe" npm run test:ai-extract:live
+```
+
 ## デプロイ
 
 初回デプロイ前に、Google OAuthとセッション用の値をWorker secretとして設定します。
