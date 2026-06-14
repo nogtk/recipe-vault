@@ -41,6 +41,16 @@ npx wrangler d1 migrations apply recipe-vault --local
 npx wrangler d1 migrations apply recipe-vault --remote
 ```
 
+## 品質チェック
+
+```bash
+npm run check
+npm run lint
+npm run format
+```
+
+LintはOxlint、FormatはOxfmtを使います。CIでは `npm run check` で型チェック、lint、テストを実行します。
+
 ## デプロイ
 
 初回デプロイ前に、Google OAuthとセッション用の値をWorker secretとして設定します。

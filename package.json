@@ -6,15 +6,20 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:dry-run": "wrangler deploy --dry-run",
+    "lint": "oxlint --deny-warnings",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --write .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
     "hono": "^4.8.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260613.0",
+    "oxfmt": "0.54.0",
+    "oxlint": "1.69.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0",
     "wrangler": "^4.20.0"
